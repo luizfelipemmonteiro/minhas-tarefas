@@ -45,7 +45,12 @@ function openFolder(groupID) {
 
   const contents = document.createElement('div');
   contents.className = 'contents';
-  contents.appendChild(ui.buildListScreen(groupID, { onBack: closeFolder }));
+  contents.appendChild(ui.buildListScreen(groupID, {
+    onBack: closeFolder,
+    // Ao trocar de aba, a camada precisa saber para qual cartão voltar
+    // quando a pasta for fechada.
+    onGroupChange: (id) => { if (folderOverlay) folderOverlay.groupID = id; }
+  }));
 
   overlay.append(flyer, contents);
   $('#overlay-host').appendChild(overlay);
@@ -113,8 +118,6 @@ shelfScreen.addEventListener('click', (event) => {
 
   if (event.target.closest('[data-action="new-folder"]')) { newFolder(); return; }
 
-  // Só aparece quando não há nenhuma pasta — sem ela os Ajustes ficariam
-  // inalcançáveis, já que eles moram no menu de dentro da pasta.
   if (event.target.closest('[data-action="settings"]')) {
     sheets.openSettingsSheet({ onDone: refreshShelf, onSyncNow: syncNow });
   }

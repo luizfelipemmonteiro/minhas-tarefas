@@ -513,6 +513,42 @@ export function openGroupSheet(groupToEdit, { isNew = false, onDone } = {}) {
   });
 }
 
+/* ── Ordem das pastas ────────────────────────────────────── */
+
+/** A ordem vale para a estante e para a tira de abas dentro da pasta. */
+function orderPage(onDone) {
+  let order = store.activeGroups().map((g) => g.id);
+
+  return {
+    title: 'Ordem das pastas',
+    render: () => group('', order.map((id, index) => {
+      const g = store.group(id);
+      if (!g) return '';
+      return `<div class="field">
+          <span class="lead" style="width:30px;flex:none">${ui.folderHTML(g)}</span>
+          <span style="margin-left:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(groupTitle(g))}</span>
+          <span class="stepper">
+            <button type="button" data-move="${index}:-1" ${index === 0 ? 'disabled' : ''} aria-label="Subir">↑</button>
+            <button type="button" data-move="${index}:1" ${index === order.length - 1 ? 'disabled' : ''} aria-label="Descer">↓</button>
+          </span>
+        </div>`;
+    }).join(''), 'A ordem aqui é a ordem das abas dentro da pasta.'),
+    mount: (root, api) => {
+      root.addEventListener('click', (event) => {
+        const move = event.target.closest('[data-move]');
+        if (!move) return;
+        const [index, delta] = move.dataset.move.split(':').map(Number);
+        const target = index + delta;
+        if (target < 0 || target >= order.length) return;
+        [order[index], order[target]] = [order[target], order[index]];
+        store.reorderGroups(order);
+        onDone?.();
+        api.repaint();
+      });
+    }
+  };
+}
+
 /* ── Ajustes ─────────────────────────────────────────────── */
 
 export function openSettingsSheet({ onDone, onSyncNow } = {}) {
@@ -557,6 +593,9 @@ export function openSettingsSheet({ onDone, onSyncNow } = {}) {
         'limitado a ele, com permissão de <b>Contents: Read and write</b>. ' +
         'O token fica só neste aparelho.')}
 
+      ${group('Pastas', linkField('Ordem das pastas', 'i-sort',
+        `${store.activeGroups().length}`, 'order'))}
+
       ${group('Backup em arquivo', `
         <button type="button" class="field" data-export>
           <span class="lead">${icon('i-share')}<span>Exportar tudo</span></span></button>
@@ -581,6 +620,8 @@ export function openSettingsSheet({ onDone, onSyncNow } = {}) {
       });
 
       root.addEventListener('click', async (event) => {
+        if (event.target.closest('[data-push="order"]')) { api.push(orderPage(onDone)); return; }
+
         if (event.target.closest('[data-test]')) {
           try {
             const info = await sync.testConnection();

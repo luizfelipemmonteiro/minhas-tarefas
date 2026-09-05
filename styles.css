@@ -733,7 +733,12 @@ button.field:active { background: var(--fill); }
 .field .lead svg { font-size: 19px; color: var(--label-secondary); }
 .field .value { margin-left: auto; color: var(--label-secondary); text-align: right;
                 overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.field .chev { color: var(--label-tertiary); font-size: 15px; flex: none; margin-left: 2px; }
+/* Reaproveita o chevron de "voltar", espelhado: numa linha que abre outra
+   tela ele tem que apontar para a direita. */
+.field .chev {
+  color: var(--label-tertiary); font-size: 15px; flex: none; margin-left: 2px;
+  transform: scaleX(-1);
+}
 .field.danger { color: var(--red); justify-content: center; }
 .field input[type="text"], .field input[type="url"], .field input[type="date"],
 .field input[type="time"], .field input[type="number"], .field textarea, .field select {
@@ -1009,3 +1014,77 @@ button.field:active { background: var(--fill); }
 /* Estado vazio mais leve. */
 .empty { padding: 72px 32px; gap: 6px; }
 .empty h3 { font-weight: 600; }
+
+/* ── Abas de pastas ────────────────────────────────────────── */
+/* Dentro de uma pasta, as outras ficam como abas de um ficheiro:
+   um toque passa de uma para a outra, sem voltar para a estante. */
+
+.folder-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  padding: 0 var(--margin);
+  padding-left: calc(var(--margin) + var(--safe-left));
+  padding-right: calc(var(--margin) + var(--safe-right));
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+  height: 42px;
+}
+.folder-tabs::-webkit-scrollbar { display: none; }
+
+.ftab {
+  flex: none;
+  scroll-snap-align: center;
+  display: flex;
+  align-items: center;
+  height: 30px;
+  max-width: 46vw;
+  padding: 0 13px;
+  border-radius: 11px 11px 0 0;
+  background: color-mix(in srgb, var(--ftab) 20%, transparent);
+  color: var(--label-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  line-height: 30px;
+  transition: height var(--dur-quick) var(--ease-ios),
+              background var(--dur-quick) var(--ease-out),
+              color var(--dur-quick) var(--ease-out);
+}
+.ftab:active { opacity: 0.6; }
+
+/* A aba ativa sobe, ganha a cor cheia e encosta no conteúdo — como a
+   pasta que está na frente do ficheiro. */
+.ftab.active {
+  height: 38px;
+  line-height: 38px;
+  background: var(--ftab);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 -1px 6px -2px color-mix(in srgb, var(--ftab) 60%, transparent);
+}
+
+/* Com uma pasta só não há para onde navegar; a tira some. */
+.folder-tabs:not(.has-many) { display: none; }
+
+/* A troca de pasta faz o conteúdo piscar de leve, para o toque ter
+   resposta mesmo quando as duas listas se parecem. */
+.list-fade { animation: list-fade 260ms var(--ease-out) both; }
+@keyframes list-fade {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Título da barra dentro de uma pasta: escondido quando a tira de abas
+   já diz onde você está, visível quando existe uma pasta só (aí não há
+   tira nenhuma). A especificidade extra é de propósito, para vencer a
+   regra de "título aparece ao rolar" que vale na estante. */
+.screen.list-screen .nav .nav-title-inline { opacity: 0; transform: none; }
+.screen.list-screen.single-folder .nav .nav-title-inline { opacity: 1; }

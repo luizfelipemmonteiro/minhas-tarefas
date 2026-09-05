@@ -2,7 +2,7 @@
    Estratégia: cache primeiro para os arquivos do app; a API do GitHub
    nunca passa por aqui (sempre rede). */
 
-const VERSION = 'v2';
+const VERSION = 'v3';
 const CACHE = `minhas-tarefas-${VERSION}`;
 
 const SHELL = [

@@ -32,13 +32,18 @@ aparelho. Não expira nunca e não precisa de Xcode.
 
 ## 2. O que ele faz
 
-A **tela inicial tem só duas coisas**: as suas pastas e um `+` para criar
-outra. Nada de busca, contadores ou listas automáticas — as pastas são o app.
-Tudo o mais mora dentro da pasta, no menu **⋯** (inclusive os Ajustes).
+A **tela inicial tem só as pastas**, com dois botões no topo: **⚙︎ Ajustes**
+e **+ nova pasta**. Nada de busca, contadores ou listas automáticas — as
+pastas são o app.
+
+Dentro de uma pasta, uma **tira de abas** lista todas as outras: um toque
+passa de uma para a outra sem voltar para a estante, como as divisórias de um
+ficheiro. A aba ativa sobe e ganha a cor cheia da pasta.
 
 | Recurso | Onde está |
 | --- | --- |
 | Estante de pastas, com a pasta abrindo em 3D | `js/main.js`, `styles.css` |
+| Tira de abas para trocar de pasta em um toque | `js/ui.js`, `styles.css` |
 | Círculo de concluir + risco animado | `js/ui.js`, `styles.css` |
 | “Ocultar tarefas concluídas” (menu ⋯) | `js/ui.js` |
 | Escrita com Apple Pencil em papel pautado | `js/ink.js` |
@@ -53,6 +58,9 @@ Tudo o mais mora dentro da pasta, no menu **⋯** (inclusive os Ajustes).
 De propósito, só duas coisas: o **nome** e a **cor** da pasta (nove tons).
 Não há escolha de fonte, tamanho, símbolo ou tema — o app tem um desenho só,
 e é ele que segura a coisa toda de pé.
+
+A **ordem** das pastas (que vale para a estante e para a tira de abas) fica
+em **⚙︎ Ajustes → Ordem das pastas**.
 
 ### Escrita à mão (iPad e iPhone)
 
@@ -135,7 +143,7 @@ item “ressuscitar”.
 
 ## 5. Backup em arquivo
 
-Abra uma pasta → **⋯** → **Ajustes** → **Exportar tudo**. Gera um `.json` que você pode guardar no iCloud
+**⚙︎ Ajustes** → **Exportar tudo**. Gera um `.json` que você pode guardar no iCloud
 Drive. **Importar** junta o arquivo com o que já existe, mantendo a versão
 mais recente de cada item — então dá para usar como restauração ou como
 sincronização manual entre aparelhos.

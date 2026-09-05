@@ -5,7 +5,7 @@ import {
 } from './store.js';
 import { inkSVG, InkPad } from './ink.js';
 import { recurrenceSummary } from './recurrence.js';
-import { openTaskSheet, openGroupSheet, openSettingsSheet } from './sheets.js';
+import { openTaskSheet, openGroupSheet } from './sheets.js';
 import { updateBadge } from './sync.js';
 
 /* ── Utilitários ─────────────────────────────────────────── */
@@ -164,7 +164,6 @@ export function renderShelf() {
       <div class="empty" style="grid-column:1/-1">
         <h3>Nenhuma pasta ainda</h3>
         <p>Toque em + para criar a primeira.</p>
-        <button type="button" class="quiet-link" data-action="settings">Ajustes</button>
       </div>`;
   } else {
     grid.innerHTML = groups.map((group) => `
@@ -317,10 +316,20 @@ function hidesCompleted(groupID) {
   return Boolean(store.group(groupID)?.hidesCompleted);
 }
 
-/** Monta a tela de uma pasta. */
-export function buildListScreen(groupID, { onBack }) {
+/**
+ * Monta a tela de uma pasta.
+ *
+ * A tira de abas no topo lista todas as pastas: um toque troca de pasta
+ * sem voltar para a estante, como as divisórias de um ficheiro.
+ *
+ * @param {string} groupID pasta em que a tela abre
+ * @param {{onBack:()=>void, onGroupChange?:(id:string)=>void}} options
+ */
+export function buildListScreen(groupID, { onBack, onGroupChange }) {
+  let currentID = groupID;
+
   const screen = document.createElement('section');
-  screen.className = 'screen';
+  screen.className = 'screen list-screen';
 
   screen.innerHTML = `
     <header class="nav">
@@ -328,12 +337,12 @@ export function buildListScreen(groupID, { onBack }) {
         <span class="nav-leading">
           <button type="button" class="nav-text-btn" data-back>${icon('i-back')}<span>Pastas</span></button>
         </span>
-        <span class="nav-title-inline"></span>
+        <span class="nav-title-inline" data-title></span>
         <span class="nav-actions">
           <button type="button" class="nav-btn" data-menu aria-label="Mais">${icon('i-ellipsis')}</button>
         </span>
       </div>
-      <h1 class="nav-title-large"></h1>
+      <nav class="folder-tabs" data-tabs aria-label="Pastas"></nav>
     </header>
     <main class="scroll" data-scroll></main>
     <div class="toolbar">
@@ -343,23 +352,63 @@ export function buildListScreen(groupID, { onBack }) {
     </div>`;
 
   const scroll = $('[data-scroll]', screen);
+  const tabsBar = $('[data-tabs]', screen);
   const nav = $('.nav', screen);
-  scroll.addEventListener('scroll', () => nav.classList.toggle('scrolled', scroll.scrollTop > 14));
+  scroll.addEventListener('scroll', () => nav.classList.toggle('scrolled', scroll.scrollTop > 8));
 
   attachSwipe(scroll);
 
-  function render() {
-    const group = store.group(groupID);
-    if (!group) { onBack?.(); return; }
+  /* ── Abas ── */
 
-    const title = groupTitle(group);
-    $('.nav-title-inline', screen).textContent = title;
-    $('.nav-title-large', screen).textContent = title;
+  function renderTabs() {
+    const groups = store.activeGroups();
+    tabsBar.classList.toggle('has-many', groups.length > 1);
+    tabsBar.innerHTML = groups.map((group) => `
+      <button type="button" class="ftab ${group.id === currentID ? 'active' : ''}"
+              data-tab="${group.id}" style="--ftab:${tintVar(group.tint)}"
+              aria-current="${group.id === currentID}">${esc(groupTitle(group))}</button>`).join('');
+
+    const active = $('.ftab.active', tabsBar);
+    active?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+  }
+
+  function switchTo(id) {
+    if (id === currentID || !store.group(id)) return;
+    tap();
+    currentID = id;
+    onGroupChange?.(id);
+    render();
+    scroll.scrollTop = 0;
+    $('.list', screen)?.classList.add('list-fade');
+  }
+
+  /* ── Conteúdo ── */
+
+  function render() {
+    let group = store.group(currentID);
+
+    // A pasta pode ter sido apagada: cai para a vizinha em vez de fechar.
+    if (!group) {
+      const next = store.activeGroups()[0];
+      if (!next) { onBack?.(); return; }
+      currentID = next.id;
+      onGroupChange?.(currentID);
+      group = next;
+    }
+
+    $('[data-title]', screen).textContent = groupTitle(group);
     screen.style.setProperty('--tint', tintVar(group.tint));
 
-    const hide = hidesCompleted(groupID);
-    const items = store.items(groupID, hide);
-    const hidden = store.completedCount(groupID);
+    renderTabs();
+
+    // Com várias pastas, a aba ativa já diz onde você está e o título na
+    // barra seria repetição. Com uma pasta só não há tira nenhuma, e aí
+    // o título é a única indicação.
+    screen.classList.toggle('single-folder', store.activeGroups().length <= 1);
+
+    const hide = hidesCompleted(currentID);
+    const items = store.items(currentID, hide);
+    const hidden = store.completedCount(currentID);
 
     scroll.innerHTML = `
       ${hide && hidden > 0
@@ -373,7 +422,7 @@ export function buildListScreen(groupID, { onBack }) {
       </div>`;
   }
 
-  /* Ações */
+  /* ── Ações ── */
 
   function startEditing(taskID, selectAll = false) {
     const wrap = $(`.task-swipe[data-task="${taskID}"] .task-content`, screen);
@@ -410,24 +459,24 @@ export function buildListScreen(groupID, { onBack }) {
 
   function submitRow(taskID, value) {
     if (!value.trim()) { $('input.task-text', screen)?.blur(); return; }
-    const pending = store.items(groupID, true);
+    const pending = store.items(currentID, true);
     const position = pending.findIndex((t) => t.id === taskID);
-    const created = store.addTask(groupID, {}, position >= 0 ? position + 1 : null);
+    const created = store.addTask(currentID, {}, position >= 0 ? position + 1 : null);
     render();
     startEditing(created.id);
   }
 
   function addTask() {
     tap();
-    const created = store.addTask(groupID);
+    const created = store.addTask(currentID);
     render();
     startEditing(created.id);
     scroll.scrollTo({ top: scroll.scrollHeight, behavior: 'smooth' });
   }
 
   function openMenuFor(anchor) {
-    const hide = hidesCompleted(groupID);
-    const done = store.completedCount(groupID);
+    const hide = hidesCompleted(currentID);
+    const done = store.completedCount(currentID);
 
     const items = [
       {
@@ -435,7 +484,7 @@ export function buildListScreen(groupID, { onBack }) {
         label: hide ? 'Mostrar tarefas concluídas' : 'Ocultar tarefas concluídas',
         icon: hide ? 'i-eye' : 'i-eye-slash',
         action: () => {
-          const group = store.group(groupID);
+          const group = store.group(currentID);
           if (group) store.updateGroup({ ...group, hidesCompleted: !hide });
           render();
         }
@@ -443,11 +492,11 @@ export function buildListScreen(groupID, { onBack }) {
       { separator: true },
       {
         key: 'edit', label: 'Renomear e cor', icon: 'i-pencil',
-        action: () => openGroupSheet(store.group(groupID), { onDone: render })
+        action: () => openGroupSheet(store.group(currentID), { onDone: render })
       },
       {
         key: 'ink', label: 'Escrever à mão', icon: 'i-pencil',
-        action: () => openInkScreen(groupID, render)
+        action: () => openInkScreen(currentID, render)
       }
     ];
 
@@ -456,7 +505,7 @@ export function buildListScreen(groupID, { onBack }) {
       items.push({
         key: 'clear', label: 'Apagar concluídas', icon: 'i-trash', danger: true,
         action: () => {
-          const ids = store.items(groupID, false).filter((t) => t.isCompleted).map((t) => t.id);
+          const ids = store.items(currentID, false).filter((t) => t.isCompleted).map((t) => t.id);
           store.deleteTasks(ids);
           toast(`${ids.length} ${ids.length === 1 ? 'tarefa apagada' : 'tarefas apagadas'}`, {
             actionLabel: 'Desfazer', onAction: () => store.undo()
@@ -466,20 +515,14 @@ export function buildListScreen(groupID, { onBack }) {
       });
     }
 
-    // Os Ajustes moram aqui porque a tela inicial não tem mais barra de
-    // ferramentas — lá só existem as pastas e o botão de criar.
     items.push({ separator: true });
-    items.push({
-      key: 'settings', label: 'Ajustes', icon: 'i-gear',
-      action: () => openSettingsSheet({ onDone: render })
-    });
     items.push({
       key: 'delete', label: 'Apagar pasta', icon: 'i-trash', danger: true,
       action: () => {
-        const name = groupTitle(store.group(groupID) || {});
-        store.deleteGroup(groupID);
-        onBack?.();
-        toast(`Pasta “${name}” apagada`, { actionLabel: 'Desfazer', onAction: () => store.undo() });
+        const name = groupTitle(store.group(currentID) || {});
+        store.deleteGroup(currentID);
+        render();
+        toast(`Pasta “${name}” apagada`, { actionLabel: 'Desfazer', onAction: () => { store.undo(); render(); } });
       }
     });
 
@@ -487,13 +530,16 @@ export function buildListScreen(groupID, { onBack }) {
   }
 
   screen.addEventListener('click', (event) => {
+    const tab = event.target.closest('[data-tab]');
+    if (tab) { switchTo(tab.dataset.tab); return; }
+
     if (event.target.closest('[data-back]')) { onBack?.(); return; }
 
     const menuBtn = event.target.closest('[data-menu]');
     if (menuBtn) { openMenuFor(menuBtn); return; }
 
     if (event.target.closest('[data-add]')) { addTask(); return; }
-    if (event.target.closest('[data-ink]')) { openInkScreen(groupID, render); return; }
+    if (event.target.closest('[data-ink]')) { openInkScreen(currentID, render); return; }
 
     const check = event.target.closest('[data-check]');
     if (check) {
