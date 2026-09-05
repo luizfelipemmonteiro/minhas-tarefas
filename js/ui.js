@@ -1,0 +1,746 @@
+/* Telas: estante, lista de tarefas, menus, avisos e a folha de escrita. */
+
+import {
+  store, TINTS, TINT_LABEL, PRIORITY_MARK, SMART_LISTS,
+  FONT_FAMILIES, groupTitle, taskLabel, hasDetails, isOverdue
+} from './store.js';
+import { inkSVG, InkPad } from './ink.js';
+import { recurrenceSummary } from './recurrence.js';
+import { openTaskSheet, openGroupSheet, openSettingsSheet, openOrganizeSheet } from './sheets.js';
+import { updateBadge } from './sync.js';
+
+/* ── Utilitários ─────────────────────────────────────────── */
+
+export const $ = (selector, root = document) => root.querySelector(selector);
+export const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+
+export const esc = (value) => String(value ?? '')
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+export const icon = (id, cls = '') =>
+  `<svg class="${cls}" aria-hidden="true"><use href="#${id}"/></svg>`;
+
+export const tintVar = (tint) => `var(--${tint || 'blue'})`;
+
+const fmtDayShort = new Intl.DateTimeFormat('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' });
+const fmtDayYear  = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+const fmtTime     = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' });
+const fmtFull     = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+export function dayText(value) {
+  const date = new Date(value);
+  const today = new Date();
+  const startOf = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.round((startOf(date) - startOf(today)) / 86400000);
+  if (days === 0) return 'Hoje';
+  if (days === 1) return 'Amanhã';
+  if (days === -1) return 'Ontem';
+  return date.getFullYear() === today.getFullYear()
+    ? fmtDayShort.format(date).replace(/\./g, '')
+    : fmtDayYear.format(date).replace(/\./g, '');
+}
+
+export function dueText(task) {
+  if (!task.dueDate) return '';
+  const base = dayText(task.dueDate);
+  return task.includesTime ? `${base}, ${fmtTime.format(new Date(task.dueDate))}` : base;
+}
+
+export const fullDateText = (value) => fmtFull.format(new Date(value));
+
+/** Vibração curta onde o navegador permite (Android). O iOS não expõe isso
+    para a web; lá o retorno é só visual. */
+export function tap(pattern = 8) {
+  try { navigator.vibrate?.(pattern); } catch { /* ignorado */ }
+}
+
+
+/** Roda `fn` quando a animação acabar — ou depois de `ms`, o que vier antes.
+    Transições e animações CSS não avançam com a aba em segundo plano nem se
+    o elemento for substituído no meio; sem essa rede de segurança a tela
+    ficaria presa. */
+export function afterAnimation(element, ms, fn) {
+  let ran = false;
+  const run = () => { if (ran) return; ran = true; fn(); };
+  element.addEventListener('animationend', run, { once: true });
+  element.addEventListener('transitionend', run, { once: true });
+  setTimeout(run, ms);
+}
+
+/* ── Avisos rápidos ──────────────────────────────────────── */
+
+export function toast(message, { actionLabel, onAction, duration = 3200 } = {}) {
+  const host = $('#toast-host');
+  const node = document.createElement('div');
+  node.className = 'toast';
+  node.innerHTML = `<span>${esc(message)}</span>` +
+    (actionLabel ? `<button type="button">${esc(actionLabel)}</button>` : '');
+
+  if (actionLabel) {
+    node.querySelector('button').addEventListener('click', () => {
+      onAction?.();
+      dismiss();
+    });
+  }
+
+  host.appendChild(node);
+  const timer = setTimeout(dismiss, duration);
+
+  function dismiss() {
+    clearTimeout(timer);
+    if (!node.isConnected) return;
+    node.classList.add('out');
+    afterAnimation(node, 400, () => node.remove());
+  }
+  return dismiss;
+}
+
+/* ── Menu suspenso ───────────────────────────────────────── */
+
+export function openMenu(anchor, items) {
+  const scrim = document.createElement('div');
+  scrim.className = 'menu-scrim';
+
+  const menu = document.createElement('div');
+  menu.className = 'menu';
+  menu.setAttribute('role', 'menu');
+
+  menu.innerHTML = items.map((item) => {
+    if (item.separator) return '<div class="sep"></div>';
+    return `<button type="button" ${item.disabled ? 'disabled' : ''}
+              class="${item.danger ? 'danger' : ''}" data-key="${esc(item.key)}">
+              <span>${esc(item.label)}</span>${item.icon ? icon(item.icon) : ''}
+            </button>`;
+  }).join('');
+
+  document.body.append(scrim, menu);
+
+  const rect = anchor.getBoundingClientRect();
+  const width = Math.min(300, window.innerWidth - 24);
+  menu.style.width = `${width}px`;
+  const left = Math.min(Math.max(12, rect.right - width), window.innerWidth - width - 12);
+  menu.style.left = `${left}px`;
+
+  const below = rect.bottom + 6;
+  if (below + menu.offsetHeight > window.innerHeight - 12) {
+    menu.style.top = `${Math.max(12, rect.top - menu.offsetHeight - 6)}px`;
+    menu.style.transformOrigin = 'bottom right';
+  } else {
+    menu.style.top = `${below}px`;
+  }
+
+  const close = () => { scrim.remove(); menu.remove(); };
+  scrim.addEventListener('click', close);
+  menu.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-key]');
+    if (!button) return;
+    close();
+    items.find((item) => item.key === button.dataset.key)?.action?.();
+  });
+  return close;
+}
+
+/* ── Pasta desenhada ─────────────────────────────────────── */
+
+export function folderHTML(group, count, { open = false } = {}) {
+  return `<div class="folder ${open ? 'open' : ''}" style="--folder-tint:${tintVar(group.tint)}">
+      <div class="tab"></div>
+      <div class="back"></div>
+      <div class="sheet-paper p1"></div>
+      ${count > 1 ? '<div class="sheet-paper p2"></div>' : ''}
+      <div class="front">
+        <span class="glyph">${group.symbol ? esc(group.symbol) : ''}</span>
+        ${count > 0 ? `<span class="pill">${count}</span>` : ''}
+      </div>
+    </div>`;
+}
+
+const titleStyleCSS = (style = {}) =>
+  `font-family:${FONT_FAMILIES[style.family]?.css || FONT_FAMILIES.rounded.css};` +
+  `font-weight:${style.weight || 700};font-size:${Math.round((style.size || 22) * 0.7)}px;` +
+  `font-style:${style.italic ? 'italic' : 'normal'}`;
+
+/* ── Estante ─────────────────────────────────────────────── */
+
+export function renderShelf() {
+  const smart = $('#smart-grid');
+  smart.innerHTML = SMART_LISTS.map((list) => `
+    <button type="button" class="smart-card" data-smart="${list.id}"
+            style="--card-tint:${tintVar(list.tint)}">
+      <span class="row">
+        <span class="badge">${icon(list.icon)}</span>
+        <span class="count">${store.smartCount(list.id)}</span>
+      </span>
+      <span class="label">${esc(list.title)}</span>
+    </button>`).join('');
+
+  const groups = store.activeGroups();
+  $('#folder-count').textContent = groups.length || '';
+
+  const grid = $('#folder-grid');
+  if (!groups.length) {
+    grid.innerHTML = `
+      <div class="empty" style="grid-column:1/-1">
+        <div class="big">${icon('i-folder')}</div>
+        <h3>Nenhuma pasta ainda</h3>
+        <p>Crie uma pasta para separar suas tarefas por assunto.</p>
+      </div>`;
+  } else {
+    grid.innerHTML = groups.map((group) => `
+      <button type="button" class="folder-cell" data-group="${group.id}">
+        ${folderHTML(group, store.pendingCount(group.id))}
+        <span class="folder-name" style="${titleStyleCSS(group.titleStyle)}">${esc(groupTitle(group))}</span>
+      </button>`).join('');
+  }
+
+  updateBadge(store.smartCount('today'));
+}
+
+export function renderSearch(query) {
+  const box = $('#search-results');
+  const body = $('#shelf-body');
+  const results = store.search(query);
+
+  if (!query.trim()) {
+    box.hidden = true;
+    body.hidden = false;
+    return;
+  }
+  box.hidden = false;
+  body.hidden = true;
+
+  if (!results.length) {
+    box.innerHTML = `<div class="empty"><div class="big">${icon('i-search')}</div>
+      <h3>Nada encontrado</h3><p>Nenhuma tarefa combina com “${esc(query)}”.</p></div>`;
+    return;
+  }
+
+  box.innerHTML = results.map((task) => {
+    const group = store.group(task.groupID);
+    return `<button type="button" class="search-row" data-task="${task.id}">
+        <span class="dot" style="background:${tintVar(group?.tint)}"></span>
+        <span class="txt ${task.isCompleted ? 'done' : ''}">
+          <b>${esc(taskLabel(task))}</b>
+          <small>${esc(group ? groupTitle(group) : '')}</small>
+        </span>
+      </button>`;
+  }).join('');
+}
+
+/* ── Linha de tarefa ─────────────────────────────────────── */
+
+function subtitleHTML(task, groupName) {
+  const bits = [];
+  if (groupName) bits.push({ icon: 'i-folder', text: groupName });
+  if (task.dueDate) bits.push({ icon: 'i-calendar', text: dueText(task), overdue: isOverdue(task) });
+  if (task.recurrence) bits.push({ icon: 'i-repeat', text: recurrenceSummary(task.recurrence) });
+  if (task.location) bits.push({ icon: 'i-pin', text: task.location });
+  if (task.notes) bits.push({ icon: 'i-notes', text: task.notes });
+  if (!bits.length) return '';
+  return `<span class="task-sub">${bits.map((bit) =>
+    `<span class="bit ${bit.overdue ? 'overdue' : ''}">${icon(bit.icon)}<span>${esc(bit.text)}</span></span>`
+  ).join('')}</span>`;
+}
+
+export function taskHTML(task, { groupName = '' } = {}) {
+  const content = task.ink
+    ? `<span class="task-content ink" style="--ink-h:${Math.min(52, Math.max(24, task.inkHeight || 32))}px">
+         ${inkSVG(task.ink)}<span class="strike"></span></span>`
+    : `<span class="task-content"><span class="task-text">${esc(taskLabel(task))}</span></span>`;
+
+  const showInfo = hasDetails(task) || task.ink;
+
+  return `<div class="task-swipe" data-task="${task.id}">
+      <div class="swipe-actions">
+        <button type="button" class="det" data-swipe="details">${icon('i-info')}<span>Detalhes</span></button>
+        <button type="button" class="del" data-swipe="delete">${icon('i-trash')}<span>Apagar</span></button>
+      </div>
+      <div class="task ${task.isCompleted ? 'done' : ''}">
+        <button type="button" class="check" data-check="${task.id}"
+                aria-label="${task.isCompleted ? 'Concluída' : 'Marcar como concluída'}">
+          ${task.priority && !task.isCompleted
+            ? `<span class="priority">${PRIORITY_MARK[task.priority]}</span>` : ''}
+          <span class="ring"></span><span class="fill"></span>
+          <span class="tick">${icon('i-check')}</span>
+        </button>
+        <span class="task-body">${content}${subtitleHTML(task, groupName)}</span>
+        <span class="task-actions">
+          ${task.isFlagged ? `<span class="flagged">${icon('i-flag')}</span>` : ''}
+          ${showInfo ? `<button type="button" class="info" data-details="${task.id}"
+                          aria-label="Detalhes da tarefa">${icon('i-info')}</button>` : ''}
+        </span>
+      </div>
+    </div>`;
+}
+
+/* ── Deslizar para revelar ações ─────────────────────────── */
+
+const ACTIONS_WIDTH = 156;
+
+function attachSwipe(container) {
+  let row = null, startX = 0, startY = 0, dx = 0, locked = null, openRow = null;
+
+  const closeOpen = () => {
+    if (!openRow) return;
+    openRow.querySelector('.task').style.transform = '';
+    openRow.classList.remove('dragging');
+    openRow = null;
+  };
+
+  container.addEventListener('pointerdown', (event) => {
+    if (event.target.closest('.check, .info, button[data-swipe]')) return;
+    const candidate = event.target.closest('.task-swipe');
+    if (!candidate) return;
+    if (openRow && openRow !== candidate) { closeOpen(); return; }
+    row = candidate;
+    startX = event.clientX;
+    startY = event.clientY;
+    dx = 0;
+    locked = null;
+  });
+
+  container.addEventListener('pointermove', (event) => {
+    if (!row) return;
+    const deltaX = event.clientX - startX;
+    const deltaY = event.clientY - startY;
+
+    if (locked === null) {
+      if (Math.abs(deltaX) < 8 && Math.abs(deltaY) < 8) return;
+      locked = Math.abs(deltaX) > Math.abs(deltaY) * 1.4 ? 'x' : 'y';
+      if (locked === 'x') row.classList.add('dragging');
+    }
+    if (locked !== 'x') return;
+
+    event.preventDefault();
+    dx = Math.min(0, deltaX);
+    // Resistência ao passar do limite, como no iOS.
+    const shown = dx < -ACTIONS_WIDTH
+      ? -ACTIONS_WIDTH - (Math.abs(dx) - ACTIONS_WIDTH) * 0.32
+      : dx;
+    row.querySelector('.task').style.transform = `translateX(${shown}px)`;
+  });
+
+  const finish = () => {
+    if (!row) return;
+    const task = row.querySelector('.task');
+    row.classList.remove('dragging');
+
+    if (locked === 'x' && dx < -(container.clientWidth * 0.55)) {
+      // Deslizou até o fim: apaga direto, com chance de desfazer.
+      const id = row.dataset.task;
+      task.style.transform = `translateX(-100%)`;
+      deleteWithUndo(id);
+    } else if (locked === 'x' && dx < -ACTIONS_WIDTH * 0.5) {
+      task.style.transform = `translateX(${-ACTIONS_WIDTH}px)`;
+      openRow = row;
+    } else {
+      task.style.transform = '';
+      if (openRow === row) openRow = null;
+    }
+    row = null;
+    locked = null;
+  };
+
+  container.addEventListener('pointerup', finish);
+  container.addEventListener('pointercancel', finish);
+  container.addEventListener('scroll', closeOpen, true);
+  return closeOpen;
+}
+
+export function deleteWithUndo(taskID) {
+  const task = store.task(taskID);
+  if (!task) return;
+  const label = taskLabel(task);
+  store.deleteTask(taskID);
+  tap(12);
+  toast(`“${label}” apagada`, {
+    actionLabel: 'Desfazer',
+    onAction: () => { store.undo(); }
+  });
+}
+
+/* ── Tela de lista ───────────────────────────────────────── */
+
+/** @typedef {{kind:'group'|'smart', id:string}} ListSource */
+
+export function listTitle(source) {
+  if (source.kind === 'group') {
+    const group = store.group(source.id);
+    return group ? groupTitle(group) : 'Pasta';
+  }
+  return SMART_LISTS.find((l) => l.id === source.id)?.title || '';
+}
+
+export function listTint(source) {
+  if (source.kind === 'group') return store.group(source.id)?.tint || 'blue';
+  return SMART_LISTS.find((l) => l.id === source.id)?.tint || 'blue';
+}
+
+function hidesCompleted(source) {
+  if (source.kind === 'group') return Boolean(store.group(source.id)?.hidesCompleted);
+  if (source.id === 'completed') return false;
+  return localStorage.getItem('hideCompleted.smart') !== 'false';
+}
+
+function setHidesCompleted(source, value) {
+  if (source.kind === 'group') {
+    const group = store.group(source.id);
+    if (group) store.updateGroup({ ...group, hidesCompleted: value });
+  } else {
+    localStorage.setItem('hideCompleted.smart', String(value));
+  }
+}
+
+function listItems(source) {
+  const hide = hidesCompleted(source);
+  return source.kind === 'group'
+    ? store.items(source.id, hide)
+    : store.smartItems(source.id, hide);
+}
+
+/** Monta a tela de uma pasta ou lista inteligente. */
+export function buildListScreen(source, { onBack, backLabel = 'Pastas' }) {
+  const screen = document.createElement('section');
+  screen.className = 'screen';
+  screen.style.setProperty('--tint', tintVar(listTint(source)));
+
+  const canAdd = source.kind === 'group';
+
+  screen.innerHTML = `
+    <header class="nav">
+      <div class="nav-bar">
+        <span class="nav-leading">
+          <button type="button" class="nav-text-btn" data-back>${icon('i-back')}<span>${esc(backLabel)}</span></button>
+        </span>
+        <span class="nav-title-inline"></span>
+        <span class="nav-actions">
+          <button type="button" class="nav-btn" data-menu aria-label="Mais">${icon('i-ellipsis')}</button>
+        </span>
+      </div>
+      <h1 class="nav-title-large"></h1>
+    </header>
+    <main class="scroll" data-scroll></main>
+    ${canAdd ? `<div class="toolbar">
+        <button type="button" class="primary" data-add>${icon('i-plus')}<span>Nova tarefa</span></button>
+        <span class="spacer"></span>
+        <button type="button" class="primary" data-ink aria-label="Escrever à mão">${icon('i-pencil')}</button>
+      </div>` : ''}`;
+
+  const scroll = $('[data-scroll]', screen);
+  const nav = $('.nav', screen);
+  scroll.addEventListener('scroll', () => nav.classList.toggle('scrolled', scroll.scrollTop > 14));
+
+  let closeSwipe = attachSwipe(scroll);
+
+  function render() {
+    const title = listTitle(source);
+    $('.nav-title-inline', screen).textContent = title;
+    $('.nav-title-large', screen).textContent = title;
+    screen.style.setProperty('--tint', tintVar(listTint(source)));
+
+    const items = listItems(source);
+    const hidden = source.kind === 'group' ? store.completedCount(source.id) : 0;
+    const showNote = hidesCompleted(source) && hidden > 0;
+
+    const rows = items.map((task) => taskHTML(task, {
+      groupName: source.kind === 'group' ? '' : (store.group(task.groupID)?.title || '')
+    })).join('');
+
+    scroll.innerHTML = `
+      ${showNote ? `<div class="list-note">${hidden === 1 ? '1 concluída oculta' : `${hidden} concluídas ocultas`}</div>` : ''}
+      ${items.length || canAdd ? `<div class="list">${rows}${canAdd
+        ? `<button type="button" class="add-row" data-add><span class="plus">${icon('i-plus')}</span>Nova tarefa</button>`
+        : ''}</div>` : ''}
+      ${!items.length && !canAdd ? `<div class="empty"><div class="big">${icon('i-checkcircle')}</div>
+        <h3>Nada por aqui</h3><p>Tarefas desta lista aparecem aqui.</p></div>` : ''}`;
+  }
+
+  /* Ações */
+
+  function startEditing(taskID, selectAll = false) {
+    const wrap = $(`.task-swipe[data-task="${taskID}"] .task-content`, screen);
+    if (!wrap || wrap.classList.contains('ink')) return;
+    const task = store.task(taskID);
+    if (!task) return;
+
+    wrap.classList.add('editing');
+    wrap.innerHTML = `<input class="task-text" type="text" value="${esc(task.text)}"
+        placeholder="Nova tarefa" enterkeyhint="done" autocapitalize="sentences">`;
+    const input = $('input', wrap);
+    input.focus();
+    if (selectAll) input.select();
+    else input.setSelectionRange(input.value.length, input.value.length);
+
+    input.addEventListener('input', () => {
+      const current = store.task(taskID);
+      if (current) store.updateTask({ ...current, text: input.value }, { checkpoint: false });
+    });
+
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') { event.preventDefault(); submitRow(taskID, input.value); }
+      if (event.key === 'Escape') { event.preventDefault(); input.blur(); }
+    });
+
+    input.addEventListener('blur', () => {
+      const current = store.task(taskID);
+      if (current && !current.text.trim() && !current.ink && !hasDetails(current)) {
+        store.deleteTask(taskID);
+      }
+      render();
+    }, { once: true });
+  }
+
+  function submitRow(taskID, value) {
+    if (!canAdd) return;
+    if (!value.trim()) { $('input.task-text', screen)?.blur(); return; }
+    const pending = store.items(source.id, true);
+    const position = pending.findIndex((t) => t.id === taskID);
+    const created = store.addTask(source.id, {}, position >= 0 ? position + 1 : null);
+    render();
+    startEditing(created.id);
+  }
+
+  function addTask() {
+    if (!canAdd) return;
+    tap();
+    const created = store.addTask(source.id);
+    render();
+    startEditing(created.id);
+    scroll.scrollTo({ top: scroll.scrollHeight, behavior: 'smooth' });
+  }
+
+  function openMenuFor(anchor) {
+    const hide = hidesCompleted(source);
+    const items = [
+      {
+        key: 'hide',
+        label: hide ? 'Mostrar tarefas concluídas' : 'Ocultar tarefas concluídas',
+        icon: hide ? 'i-eye' : 'i-eye-slash',
+        action: () => { setHidesCompleted(source, !hide); render(); }
+      }
+    ];
+
+    if (source.kind === 'group') {
+      items.push({ separator: true });
+      items.push({
+        key: 'edit', label: 'Editar pasta', icon: 'i-pencil',
+        action: () => openGroupSheet(store.group(source.id), { onDone: render })
+      });
+      items.push({
+        key: 'ink', label: 'Escrever à mão', icon: 'i-pencil',
+        action: () => openInkScreen(source.id, render)
+      });
+
+      const done = store.completedCount(source.id);
+      if (done > 0) {
+        items.push({ separator: true });
+        items.push({
+          key: 'clear', label: 'Apagar concluídas', icon: 'i-trash', danger: true,
+          action: () => {
+            const ids = store.items(source.id, false).filter((t) => t.isCompleted).map((t) => t.id);
+            store.deleteTasks(ids);
+            toast(`${ids.length} ${ids.length === 1 ? 'tarefa apagada' : 'tarefas apagadas'}`, {
+              actionLabel: 'Desfazer', onAction: () => store.undo()
+            });
+            render();
+          }
+        });
+      }
+
+      items.push({ separator: true });
+      items.push({
+        key: 'delete', label: 'Apagar pasta', icon: 'i-trash', danger: true,
+        action: () => {
+          const name = listTitle(source);
+          store.deleteGroup(source.id);
+          onBack?.();
+          toast(`Pasta “${name}” apagada`, { actionLabel: 'Desfazer', onAction: () => store.undo() });
+        }
+      });
+    }
+
+    openMenu(anchor, items);
+  }
+
+  screen.addEventListener('click', (event) => {
+    const back = event.target.closest('[data-back]');
+    if (back) { onBack?.(); return; }
+
+    const menuBtn = event.target.closest('[data-menu]');
+    if (menuBtn) { openMenuFor(menuBtn); return; }
+
+    const add = event.target.closest('[data-add]');
+    if (add) { addTask(); return; }
+
+    const inkBtn = event.target.closest('[data-ink]');
+    if (inkBtn) { openInkScreen(source.id, render); return; }
+
+    const check = event.target.closest('[data-check]');
+    if (check) {
+      tap(10);
+      const id = check.dataset.check;
+      const task = store.task(id);
+      const spawned = store.setCompleted(id, !task.isCompleted);
+      check.closest('.task').classList.toggle('done', !task.isCompleted);
+      // Deixa o risco correr antes de reordenar a lista.
+      setTimeout(render, 340);
+      if (spawned) {
+        toast(`Próxima: ${dayText(spawned.dueDate)}`);
+      }
+      return;
+    }
+
+    const details = event.target.closest('[data-details]');
+    if (details) { openTaskSheet(details.dataset.details, { onDone: render }); return; }
+
+    const swipeAction = event.target.closest('[data-swipe]');
+    if (swipeAction) {
+      const id = swipeAction.closest('.task-swipe').dataset.task;
+      if (swipeAction.dataset.swipe === 'delete') { deleteWithUndo(id); render(); }
+      else openTaskSheet(id, { onDone: render });
+      return;
+    }
+
+    const body = event.target.closest('.task-body');
+    if (body) {
+      const id = body.closest('.task-swipe').dataset.task;
+      const task = store.task(id);
+      if (task?.ink) openTaskSheet(id, { onDone: render });
+      else startEditing(id);
+    }
+  });
+
+  render();
+  screen.__render = render;
+  return screen;
+}
+
+/* ── Tela de escrita à mão ───────────────────────────────── */
+
+const LINE_HEIGHT = 62;
+const LINE_COUNT = 26;
+const GUTTER = 54;
+
+export function openInkScreen(groupID, onDone) {
+  const group = store.group(groupID);
+  if (!group) return;
+
+  const host = $('#ink-host');
+  const screen = document.createElement('div');
+  screen.className = 'ink-screen';
+  screen.style.setProperty('--tint', tintVar(group.tint));
+
+  screen.innerHTML = `
+    <header class="sheet-nav">
+      <span class="side"><button type="button" class="nav-text-btn" data-hint>Ajuda</button></span>
+      <span class="title" data-count>0 tarefas</span>
+      <span class="side right"><button type="button" class="nav-text-btn strong" data-done>Concluir</button></span>
+    </header>
+    <div class="ink-canvas-wrap">
+      <div class="ink-hint">${icon('i-pencil')}<span>Escreva uma tarefa por linha. Ao parar, ela entra na lista sozinha.</span></div>
+      <div class="ink-layer" style="min-height:${LINE_HEIGHT * LINE_COUNT}px;
+           background-image:repeating-linear-gradient(to bottom, transparent, transparent ${LINE_HEIGHT - 1}px,
+             var(--separator) ${LINE_HEIGHT - 1}px, var(--separator) ${LINE_HEIGHT}px);
+           background-position:0 0;">
+        <canvas></canvas>
+      </div>
+    </div>
+    <div class="ink-tools">
+      <button type="button" class="tool" data-tool="draw" aria-pressed="true">${icon('i-pencil')}<span>Caneta</span></button>
+      <button type="button" class="tool" data-tool="erase" aria-pressed="false">Borracha</button>
+      <button type="button" class="tool" data-undo>${icon('i-undo')}</button>
+      <span style="flex:1"></span>
+      <button type="button" class="tool" data-clear>Limpar</button>
+    </div>`;
+
+  host.appendChild(screen);
+
+  const layer = $('.ink-layer', screen);
+  const canvas = $('canvas', screen);
+  const hint = $('.ink-hint', screen);
+  const countLabel = $('[data-count]', screen);
+
+  // Círculos de conclusão no começo de cada pauta.
+  for (let line = 0; line < LINE_COUNT; line++) {
+    const dot = document.createElement('div');
+    dot.className = 'rule-check';
+    dot.style.top = `${line * LINE_HEIGHT + LINE_HEIGHT - 34}px`;
+    dot.dataset.line = String(line);
+    layer.appendChild(dot);
+  }
+
+  const lineTasks = new Map();   // índice da linha → id da tarefa
+
+  const pad = new InkPad(layer, canvas, {
+    lineHeight: LINE_HEIGHT,
+    lineCount: LINE_COUNT,
+    gutter: GUTTER,
+    onStrokeStart: () => { hint.hidden = true; },
+    onLinesChanged: syncLines
+  });
+
+  function syncLines(lines) {
+    // Linhas com tinta: cria ou atualiza a tarefa.
+    for (const line of [...lines.keys()].sort((a, b) => a - b)) {
+      const ink = lines.get(line);
+      const height = Math.min(52, Math.max(24, ink.h));
+      const existingID = lineTasks.get(line);
+      const existing = existingID ? store.task(existingID) : null;
+
+      if (existing) {
+        if (JSON.stringify(existing.ink) === JSON.stringify(ink)) continue;
+        store.updateTask({ ...existing, ink, inkHeight: height }, { checkpoint: false });
+      } else {
+        const created = store.addTask(groupID, { ink, inkHeight: height });
+        lineTasks.set(line, created.id);
+        tap();
+      }
+    }
+
+    // Linhas apagadas: some com a tarefa.
+    for (const [line, id] of [...lineTasks]) {
+      if (lines.has(line)) continue;
+      store.deleteTask(id);
+      lineTasks.delete(line);
+    }
+
+    for (const dot of $$('.rule-check', screen)) {
+      dot.classList.toggle('active', lineTasks.has(Number(dot.dataset.line)));
+    }
+    const total = lineTasks.size;
+    countLabel.textContent = total === 1 ? '1 tarefa' : `${total} tarefas`;
+  }
+
+  setTimeout(() => { hint.hidden = true; }, 5200);
+
+  const onResize = () => pad.resize();
+  window.addEventListener('resize', onResize);
+
+  screen.addEventListener('click', (event) => {
+    const tool = event.target.closest('[data-tool]');
+    if (tool) {
+      pad.setMode(tool.dataset.tool);
+      $$('[data-tool]', screen).forEach((b) =>
+        b.setAttribute('aria-pressed', String(b === tool)));
+      return;
+    }
+    if (event.target.closest('[data-undo]')) { pad.undo(); return; }
+    if (event.target.closest('[data-clear]')) { pad.clear(); return; }
+    if (event.target.closest('[data-hint]')) { hint.hidden = !hint.hidden; return; }
+    if (event.target.closest('[data-done]')) { close(); }
+  });
+
+  function close() {
+    pad.flush();
+    window.removeEventListener('resize', onResize);
+    pad.destroy();
+    screen.classList.add('closing');
+    afterAnimation(screen, 620, () => {
+      screen.remove();
+      onDone?.();
+    });
+  }
+
+  return close;
+}
