@@ -552,11 +552,23 @@ function orderPage(onDone) {
 /* ── Ajustes ─────────────────────────────────────────────── */
 
 export function openSettingsSheet({ onDone, onSyncNow } = {}) {
-  let status = sync.syncConfig.isConfigured
-    ? (sync.syncConfig.lastSync
-        ? `Sincronizado em ${new Date(sync.syncConfig.lastSync).toLocaleString('pt-BR')}`
-        : 'Configurada')
-    : 'Desativada';
+  let editing = false;
+  let health = 'unknown';   // 'ok' | 'erro' | 'unknown'
+
+  function describe() {
+    if (!sync.syncConfig.isConfigured) return 'Desativada neste aparelho';
+    if (sync.syncConfig.lastSync) {
+      return `Sincronizado em ${new Date(sync.syncConfig.lastSync).toLocaleString('pt-BR')}`;
+    }
+    return 'Ligada — ainda não sincronizou';
+  }
+
+  function syncClass() {
+    if (!sync.syncConfig.isConfigured) return 'off';
+    return health === 'erro' ? 'bad' : 'on';
+  }
+
+  let status = describe();
 
   openSheet({
     title: 'Ajustes',
@@ -566,32 +578,48 @@ export function openSettingsSheet({ onDone, onSyncNow } = {}) {
     render: () => `
       ${group('Sincronização entre aparelhos', `
         <div class="field">
-          <span class="lead"><span>Estado</span></span>
+          <span class="lead"><span class="sync-dot ${syncClass()}"></span><span>Estado</span></span>
           <span class="value">${esc(status)}</span>
         </div>
-        <label class="field">
-          <span class="lead"><span>Repositório</span></span>
-          <input type="text" data-key="repo" value="${esc(sync.syncConfig.repo)}"
-                 placeholder="usuario/repositorio" style="text-align:right"
-                 autocapitalize="off" autocorrect="off" spellcheck="false">
-        </label>
-        <label class="field">
-          <span class="lead"><span>Token</span></span>
-          <input type="password" data-key="token" value="${esc(sync.syncConfig.token)}"
-                 placeholder="github_pat_…" style="text-align:right"
-                 autocapitalize="off" autocorrect="off" spellcheck="false">
-        </label>
-        <button type="button" class="field" data-test>
-          <span class="lead">${icon('i-cloud')}<span>Testar conexão</span></span></button>
-        ${sync.syncConfig.isConfigured ? `
+        ${sync.syncConfig.isConfigured && !editing ? `
+          <div class="field">
+            <span class="lead"><span>Repositório</span></span>
+            <span class="value">${esc(sync.syncConfig.repo)}</span>
+          </div>
+          <div class="field">
+            <span class="lead"><span>Token</span></span>
+            <span class="value">Guardado neste aparelho</span>
+          </div>
           <button type="button" class="field" data-syncnow>
             <span class="lead">${icon('i-repeat')}<span>Sincronizar agora</span></span></button>
+          <button type="button" class="field" data-edit>
+            <span class="lead">${icon('i-pencil')}<span>Trocar repositório ou token</span></span></button>
           <button type="button" class="field danger" data-syncoff>
-            <span class="lead"><span>Desativar sincronização</span></span></button>` : ''}`,
-        'Opcional. O app funciona sem isto — os dados moram no aparelho. ' +
-        'Crie um repositório <b>privado</b> no GitHub e um token <i>fine-grained</i> ' +
-        'limitado a ele, com permissão de <b>Contents: Read and write</b>. ' +
-        'O token fica só neste aparelho.')}
+            <span class="lead"><span>Desativar neste aparelho</span></span></button>
+        ` : `
+          <label class="field">
+            <span class="lead"><span>Repositório</span></span>
+            <input type="text" data-key="repo" value="${esc(sync.syncConfig.repo)}"
+                   placeholder="usuario/repositorio" style="text-align:right"
+                   autocapitalize="off" autocorrect="off" spellcheck="false">
+          </label>
+          <label class="field">
+            <span class="lead"><span>Token</span></span>
+            <input type="password" data-key="token" value="${esc(sync.syncConfig.token)}"
+                   placeholder="github_pat_…" style="text-align:right"
+                   autocapitalize="off" autocorrect="off" spellcheck="false">
+          </label>
+          <button type="button" class="field" data-test>
+            <span class="lead">${icon('i-cloud')}<span>Conectar</span></span></button>
+        `}`,
+        sync.syncConfig.isConfigured
+          ? 'Este aparelho está ligado. <b>Cada aparelho precisa do seu próprio token</b> — ' +
+            'repita estes passos no iPhone, no iPad e no Mac, apontando todos para o mesmo repositório. ' +
+            'O que você guardar aqui fica só neste aparelho e não some ao fechar o app.'
+          : 'Opcional. O app funciona sem isto — os dados moram no aparelho. ' +
+            'Crie um repositório <b>privado</b> no GitHub e um token <i>fine-grained</i> ' +
+            'limitado a ele, com permissão de <b>Contents: Read and write</b>. ' +
+            'O token fica só neste aparelho.')}
 
       ${group('Pastas', linkField('Ordem das pastas', 'i-sort',
         `${store.activeGroups().length}`, 'order'))}
@@ -622,14 +650,21 @@ export function openSettingsSheet({ onDone, onSyncNow } = {}) {
       root.addEventListener('click', async (event) => {
         if (event.target.closest('[data-push="order"]')) { api.push(orderPage(onDone)); return; }
 
+        if (event.target.closest('[data-edit]')) { editing = true; api.repaint(); return; }
+
         if (event.target.closest('[data-test]')) {
           try {
             const info = await sync.testConnection();
+            health = 'ok';
+            editing = false;
             status = info.private
-              ? `Conectado a ${info.fullName} (privado)`
-              : `Conectado a ${info.fullName} — atenção: este repositório é público`;
-            ui?.toast(info.private ? 'Conexão OK' : 'Conectado, mas o repositório é público');
+              ? `Ligado a ${info.fullName}`
+              : `Ligado a ${info.fullName} — atenção: este repositório é público`;
+            ui?.toast(info.private ? 'Conectado' : 'Conectado, mas o repositório é público');
+            await onSyncNow?.();
+            status = describe();
           } catch (error) {
+            health = 'erro';
             status = error.message;
             ui?.toast(error.message);
           }
@@ -640,14 +675,16 @@ export function openSettingsSheet({ onDone, onSyncNow } = {}) {
         if (event.target.closest('[data-syncnow]')) {
           ui?.toast('Sincronizando…');
           await onSyncNow?.();
-          status = `Sincronizado em ${new Date().toLocaleString('pt-BR')}`;
+          status = describe();
           api.repaint();
           return;
         }
 
         if (event.target.closest('[data-syncoff]')) {
           sync.syncConfig.clear();
-          status = 'Desativada';
+          editing = false;
+          health = 'unknown';
+          status = describe();
           api.repaint();
           return;
         }

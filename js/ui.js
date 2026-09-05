@@ -143,11 +143,13 @@ export function openMenu(anchor, items) {
 /* ── Pasta desenhada ─────────────────────────────────────── */
 
 export function folderHTML(group, { open = false } = {}) {
+  // Uma forma só, plana. O degradê é neutro e mora no `<defs>` do
+  // documento, então as dezoito cores reaproveitam o mesmo.
   return `<div class="folder ${open ? 'open' : ''}" style="--folder-tint:${tintVar(group.tint)}">
-      <div class="tab"></div>
-      <div class="back"></div>
-      <div class="sheet-paper p1"></div>
-      <div class="front"></div>
+      <svg viewBox="0 0 100 82" aria-hidden="true">
+        <path d="M5 20C5 13.4 10.4 8 17 8h19.5c3.1 0 6 1.4 7.9 3.9l3.8 5c1.3 1.7 3.3 2.7 5.4 2.7H83c6.6 0 12 5.4 12 12V62c0 6.6-5.4 12-12 12H17C10.4 74 5 68.6 5 62Z" fill="currentColor"/>
+        <path d="M5 20C5 13.4 10.4 8 17 8h19.5c3.1 0 6 1.4 7.9 3.9l3.8 5c1.3 1.7 3.3 2.7 5.4 2.7H83c6.6 0 12 5.4 12 12V62c0 6.6-5.4 12-12 12H17C10.4 74 5 68.6 5 62Z" fill="url(#folderShade)"/>
+      </svg>
     </div>`;
 }
 

@@ -22,24 +22,37 @@
   --nav-blur:           rgba(246, 245, 241, 0.78);
   --sheet-scrim:        rgba(28, 27, 24, 0.22);
   --paper:              #FFFFFF;
-  --folder-paper:       #FFFFFF;
 
-  /* Nove cores de pasta, dessaturadas. É a única personalização
-     que o app oferece, junto com o nome. */
-  --blue:   #6C93E8;
-  --violet: #9186E6;
-  --rose:   #E58FAE;
-  --coral:  #E88B7D;
-  --amber:  #E8A961;
-  --sand:   #D9BC6E;
-  --sage:   #86BF95;
-  --teal:   #6DB9C2;
-  --slate:  #9DA09F;
+  /* Dezoito cores de pasta, geradas na mesma saturação e luminosidade
+     (HSL 56%/66%) para conviverem sem nenhuma gritar mais que as outras.
+     Junto com o nome, é a única personalização do app. */
+  --blue:      #789BD9;
+  --sky:       #78B8D9;
+  --teal:      #78D9D9;
+  --mint:      #78D9BC;
+  --green:     #78D99D;
+  --olive:     #A0D978;
+  --sand:      #D9C178;
+  --amber:     #D9A878;
+  --coral:     #D98E78;
+  --red:       #D9787B;
+  --rose:      #D97895;
+  --pink:      #D978B0;
+  --magenta:   #D978D1;
+  --purple:    #BC78D9;
+  --violet:    #9B78D9;
+  --indigo:    #787BD9;
+  --slate:     #8F9CAE;
+  --graphite:  #A3A099;
 
-  --red:    #E06055;
-  --orange: #E8A961;
-  --green:  #86BF95;
-  --gray:   #9DA09F;
+  /* Papéis semânticos, apontando para cores da mesma família. */
+  --danger:  var(--red);
+  --warning: var(--amber);
+  --ok:      var(--green);
+  --neutral: var(--graphite);
+
+  --orange: var(--amber);
+  --gray:   var(--graphite);
 
   --tint: var(--blue);
 
@@ -82,22 +95,25 @@
     --nav-blur:           rgba(26, 25, 23, 0.80);
     --sheet-scrim:        rgba(0, 0, 0, 0.45);
     --paper:              #242320;
-    --folder-paper:       #D8D5CE;
 
-    --blue:   #7EA3F0;
-    --violet: #A199EE;
-    --rose:   #EDA0BC;
-    --coral:  #F09B8D;
-    --amber:  #F0B672;
-    --sand:   #E5CD86;
-    --sage:   #97CBA5;
-    --teal:   #7FC7CF;
-    --slate:  #A9ABAB;
-
-    --red:    #F08078;
-    --orange: #F0B672;
-    --green:  #97CBA5;
-    --gray:   #A9ABAB;
+    --blue:      #8BACE4;
+    --sky:       #8BC6E4;
+    --teal:      #8BE4E4;
+    --mint:      #8BE4C9;
+    --green:     #8BE4AD;
+    --olive:     #B0E48B;
+    --sand:      #E4CE8B;
+    --amber:     #E4B88B;
+    --coral:     #E4A08B;
+    --red:       #E48B8E;
+    --rose:      #E48BA6;
+    --pink:      #E48BBF;
+    --magenta:   #E48BDC;
+    --purple:    #C98BE4;
+    --violet:    #AC8BE4;
+    --indigo:    #8B8EE4;
+    --slate:     #A2ABB9;
+    --graphite:  #B0AEAB;
   }
 }
 
@@ -316,55 +332,22 @@ svg { width: 1em; height: 1em; display: block; }
   overflow: hidden;
 }
 
-/* A pasta física: costas com abinha, uma folha de papel espiando e a
-   capa da frente, que gira em 3D ao abrir. */
+/* A pasta: uma forma só, plana, com uma sombra colorida macia.
+   O desenho vive no SVG (ver `folderHTML`); aqui vai só a cor e o ar. */
 .folder {
   position: relative;
   width: 100%;
-  aspect-ratio: 1.16;
-  perspective: 800px;
   --folder-tint: var(--blue);
+  color: var(--folder-tint);
 }
-.folder .back {
-  position: absolute;
-  left: 0; right: 0; top: 15%; bottom: 0;
-  /* As costas ficam nitidamente mais escuras que a capa: é isso que faz
-     a abinha ler como a camada de trás, e não como um recorte solto. */
-  background: linear-gradient(to bottom,
-              color-mix(in srgb, var(--folder-tint) 80%, black 10%),
-              color-mix(in srgb, var(--folder-tint) 68%, black 16%));
-  border-radius: 12%/15%;
+.folder svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 8px 16px color-mix(in srgb, var(--folder-tint) 30%, transparent));
+  transition: transform var(--dur-sheet) var(--ease-ios);
 }
-.folder .tab {
-  position: absolute;
-  left: 0; top: 0;
-  width: 44%; height: 26%;
-  background: color-mix(in srgb, var(--folder-tint) 80%, black 10%);
-  border-radius: 13% 40% 0 0 / 34% 58% 0 0;
-}
-.folder .sheet-paper {
-  position: absolute;
-  left: 9%; right: 9%;
-  background: var(--folder-paper);
-  border-radius: 4%/6%;
-}
-.folder .sheet-paper.p1 { top: 20.5%; bottom: 14%; }
-.folder .sheet-paper.p2 { left: 11%; right: 11%; top: 23%; bottom: 12%; }
-
-.folder .front {
-  position: absolute;
-  left: 0; right: 0; top: 29%; bottom: 0;
-  background: linear-gradient(158deg,
-              color-mix(in srgb, var(--folder-tint) 100%, white 10%),
-              color-mix(in srgb, var(--folder-tint) 90%, black 8%));
-  border-radius: 12%/17%;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.38),
-              0 12px 24px -10px color-mix(in srgb, var(--folder-tint) 60%, transparent);
-  transform-origin: bottom center;
-  transition: transform var(--dur-sheet) var(--ease-ios),
-              opacity var(--dur-sheet) var(--ease-ios);
-}
-.folder.open .front { transform: rotateX(-108deg); opacity: 0.5; }
+.folder.open svg { transform: scale(1.06); }
 
 /* Pasta abrindo em tela cheia */
 #overlay-host:empty { display: none; }
@@ -1088,3 +1071,12 @@ button.field:active { background: var(--fill); }
    regra de "título aparece ao rolar" que vale na estante. */
 .screen.list-screen .nav .nav-title-inline { opacity: 0; transform: none; }
 .screen.list-screen.single-folder .nav .nav-title-inline { opacity: 1; }
+
+/* Bolinha de estado da sincronização */
+.sync-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  flex: none; display: inline-block;
+  background: var(--label-tertiary);
+}
+.sync-dot.on  { background: var(--green); }
+.sync-dot.bad { background: var(--red); }

@@ -9,12 +9,30 @@ const DB_STORE = 'kv';
 const DOC_KEY = 'documento';
 
 export const TINTS = [
-  'blue', 'violet', 'rose', 'coral', 'amber', 'sand', 'sage', 'teal', 'slate'
+  'blue', 'sky', 'teal', 'mint', 'green', 'olive',
+  'sand', 'amber', 'coral', 'red', 'rose', 'pink',
+  'magenta', 'purple', 'violet', 'indigo', 'slate', 'graphite'
 ];
 
 export const TINT_LABEL = {
-  blue: 'Azul', violet: 'Violeta', rose: 'Rosa', coral: 'Coral',
-  amber: 'Âmbar', sand: 'Areia', sage: 'Sálvia', teal: 'Turquesa', slate: 'Ardósia'
+  blue: 'Azul',
+  sky: 'Céu',
+  teal: 'Turquesa',
+  mint: 'Menta',
+  green: 'Verde',
+  olive: 'Oliva',
+  sand: 'Areia',
+  amber: 'Âmbar',
+  coral: 'Coral',
+  red: 'Vermelho',
+  rose: 'Rosa',
+  pink: 'Fúcsia',
+  magenta: 'Magenta',
+  purple: 'Roxo',
+  violet: 'Violeta',
+  indigo: 'Índigo',
+  slate: 'Ardósia',
+  graphite: 'Grafite',
 };
 
 export const PRIORITY_LABEL = { 0: 'Nenhuma', 1: 'Baixa', 2: 'Média', 3: 'Alta' };
@@ -332,9 +350,12 @@ class Store {
   addGroup(title = '') {
     this.checkpoint();
     const active = this.activeGroups();
+    // Passo de 5 numa lista de 18 (números coprimos): percorre a paleta
+    // inteira antes de repetir e evita que pastas criadas em sequência
+    // saiam com matizes vizinhos, quase iguais entre si.
     const group = makeGroup(
       (active.at(-1)?.sortIndex ?? 0) + 1,
-      TINTS[active.length % TINTS.length]
+      TINTS[(active.length * 5) % TINTS.length]
     );
     group.title = title;
     this.groups.push(group);

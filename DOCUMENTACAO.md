@@ -55,7 +55,9 @@ ficheiro. A aba ativa sobe e ganha a cor cheia da pasta.
 
 ### Personalização
 
-De propósito, só duas coisas: o **nome** e a **cor** da pasta (nove tons).
+De propósito, só duas coisas: o **nome** e a **cor** da pasta (dezoito tons,
+gerados na mesma saturação e luminosidade para conviverem sem nenhum gritar
+mais alto que os outros).
 Não há escolha de fonte, tamanho, símbolo ou tema — o app tem um desenho só,
 e é ele que segura a coisa toda de pé.
 
@@ -134,6 +136,12 @@ quem tiver o endereço lê. Repositório privado é privado de verdade.
 **O token fica só no aparelho** (no armazenamento local do navegador) e vai
 apenas para `api.github.com`.
 
+**Um token por aparelho.** O token fica guardado só no aparelho onde você o
+colou — ele não viaja junto com os dados, e é isso que o mantém seguro. Então
+repita a configuração no iPhone, no iPad e no Mac, apontando os três para o
+mesmo repositório. O que você guarda **não some ao fechar o app**: fica no
+armazenamento local, que sobrevive a reinícios e a atualizações do app.
+
 **Conflitos:** o merge é item a item. Se a mesma tarefa foi editada em dois
 aparelhos, vale a mais recente; itens diferentes convivem sem perda.
 Exclusões viram lápides, então apagar num aparelho apaga no outro em vez de o
@@ -201,4 +209,10 @@ hora, suba o número em `VERSION` dentro de `sw.js`.
   quando ele quebra em duas linhas — `text-decoration` não é animável.
 - **Paleta de papel quente**, não o cinza-azulado padrão do iOS: o fundo é
   claro e neutro para que a cor venha só das pastas.
+- **A pasta é uma forma só**, plana, com uma sombra colorida macia — nada de
+  camadas imitando papelão. O degradê que dá volume é neutro e compartilhado
+  por todas as cores, num `<defs>` único.
+- **A engrenagem dos ajustes é gerada por cálculo**
+  (`r(θ) = médio + amplitude · tanh(k·cos(Nθ))`), não desenhada no olho: é o
+  que garante dentes iguais e simétricos.
 - **Desfazer** (⌘Z) guarda os últimos 25 estados.
