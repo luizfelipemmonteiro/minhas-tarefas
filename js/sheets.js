@@ -1,9 +1,6 @@
 /* Folhas modais: detalhes da tarefa, repetição, editor de pasta e ajustes. */
 
-import {
-  store, TINTS, TINT_LABEL, PRIORITY_LABEL, FONT_FAMILIES, FONT_WEIGHTS,
-  groupTitle, taskLabel
-} from './store.js';
+import { store, TINTS, TINT_LABEL, PRIORITY_LABEL, groupTitle } from './store.js';
 import { inkSVG } from './ink.js';
 import {
   FREQUENCIES, FREQUENCY_LABEL, defaultRecurrence, recurrenceSummary,
@@ -34,10 +31,6 @@ const toTimeInput = (iso) => {
 };
 const fromInputs = (dateStr, timeStr) =>
   new Date(`${dateStr}T${timeStr || '09:00'}:00`);
-
-const EMOJIS = ['📁','✨','🏠','💼','🛒','📚','🎓','❤️','🏋️','🍽️','✈️','🚗','💳','💰','🎁',
-                '🌱','🐾','📷','🎵','🎮','🔧','🎨','🩺','💊','📞','✉️','💬','📅','⏰','⭐',
-                '🚩','⚡','🔥','💧','☀️','🌙','🌎','🗺️','🏷️','🎯'];
 
 /* ── Infraestrutura das folhas ───────────────────────────── */
 
@@ -445,14 +438,16 @@ function recurrencePage(draft, anchor, commit, api) {
 
 /* ── Editor de pasta ─────────────────────────────────────── */
 
+/** O app tem um desenho só: aqui dá para mudar o nome e a cor da pasta,
+    e mais nada. Sem escolha de fonte, tamanho ou símbolo. */
 export function openGroupSheet(groupToEdit, { isNew = false, onDone } = {}) {
   if (!groupToEdit) return;
-  let draft = JSON.parse(JSON.stringify(groupToEdit));
+  const draft = JSON.parse(JSON.stringify(groupToEdit));
 
   openSheet({
-    title: 'Pasta',
+    title: isNew ? 'Nova pasta' : 'Pasta',
     leftLabel: 'Cancelar',
-    rightLabel: 'OK',
+    rightLabel: isNew ? 'Criar' : 'OK',
     strongRight: true,
     onLeft: (api) => {
       if (isNew) store.deleteGroup(draft.id);
@@ -466,30 +461,13 @@ export function openGroupSheet(groupToEdit, { isNew = false, onDone } = {}) {
     },
     render: () => `
       <div class="folder-preview">
-        ${ui.folderHTML(draft, store.pendingCount(draft.id))}
-        <div style="font-family:${FONT_FAMILIES[draft.titleStyle.family].css};
-                    font-weight:${draft.titleStyle.weight};
-                    font-size:${draft.titleStyle.size}px;
-                    font-style:${draft.titleStyle.italic ? 'italic' : 'normal'};
-                    text-align:center">${esc(groupTitle(draft))}</div>
+        ${ui.folderHTML(draft)}
       </div>
 
-      ${group('Título', `<label class="field">
+      ${group('', `<label class="field">
         <input type="text" data-key="title" value="${esc(draft.title)}"
-               placeholder="Nome da pasta" autocapitalize="sentences"></label>`)}
-
-      ${group('Fonte do título', `
-        ${selectField('Tipografia', null, 'family',
-          Object.entries(FONT_FAMILIES).map(([value, f]) => ({ value, label: f.label })), draft.titleStyle.family)}
-        ${selectField('Peso', null, 'weight',
-          Object.entries(FONT_WEIGHTS).map(([value, label]) => ({ value, label })), draft.titleStyle.weight)}
-        <label class="field">
-          <span class="lead"><span>Tamanho</span></span>
-          <input type="range" min="14" max="34" step="1" data-key="size"
-                 value="${draft.titleStyle.size}" style="flex:1;margin:0 12px">
-          <span class="value">${draft.titleStyle.size}</span>
-        </label>
-        ${switchField('Itálico', null, draft.titleStyle.italic, 'italic')}`)}
+               placeholder="Nome da pasta" autocapitalize="sentences"
+               enterkeyhint="done"></label>`)}
 
       ${group('Cor', `<div class="swatches">
         ${TINTS.map((tint) => `<button type="button" class="swatch" data-tint="${tint}"
@@ -497,40 +475,29 @@ export function openGroupSheet(groupToEdit, { isNew = false, onDone } = {}) {
             <i style="background:${tintVar(tint)}"></i></button>`).join('')}
       </div>`)}
 
-      ${group('Símbolo', `<div class="glyphs">
-        <button type="button" class="glyph-btn" data-symbol="" aria-checked="${!draft.symbol}">✕</button>
-        ${EMOJIS.map((e) => `<button type="button" class="glyph-btn" data-symbol="${e}"
-            aria-checked="${draft.symbol === e}">${e}</button>`).join('')}
-      </div>`)}
-
-      ${group('', `<button type="button" class="field danger" data-delete>
+      ${isNew ? '' : group('', `<button type="button" class="field danger" data-delete>
         ${icon('i-trash')}<span style="margin-left:8px">Apagar pasta</span></button>`)}
     `,
     mount: (root, api) => {
       const titleInput = $('[data-key="title"]', root);
-      if (isNew && !draft.title) setTimeout(() => titleInput?.focus(), 420);
+      if (isNew) setTimeout(() => titleInput?.focus(), 420);
 
-      root.addEventListener('input', (event) => {
-        const key = event.target.dataset.key;
-        if (!key) return;
-        if (key === 'title') {
-          draft.title = event.target.value;
-          $('.folder-preview div:last-child', root).textContent = groupTitle(draft);
-          return;
-        }
-        if (key === 'italic') draft.titleStyle.italic = event.target.checked;
-        else if (key === 'size') draft.titleStyle.size = Number(event.target.value);
-        else if (key === 'family') draft.titleStyle.family = event.target.value;
-        else if (key === 'weight') draft.titleStyle.weight = event.target.value;
-        api.repaint();
+      titleInput?.addEventListener('input', () => { draft.title = titleInput.value; });
+      titleInput?.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') { event.preventDefault(); titleInput.blur(); }
       });
 
       root.addEventListener('click', (event) => {
         const tint = event.target.closest('[data-tint]');
-        if (tint) { draft.tint = tint.dataset.tint; api.repaint(); return; }
-
-        const symbol = event.target.closest('[data-symbol]');
-        if (symbol) { draft.symbol = symbol.dataset.symbol || null; api.repaint(); return; }
+        if (tint) {
+          draft.tint = tint.dataset.tint;
+          // Repinta só o necessário para o campo de texto não perder o foco.
+          $('.folder', root).style.setProperty('--folder-tint', tintVar(draft.tint));
+          for (const swatch of $$('[data-tint]', root)) {
+            swatch.setAttribute('aria-checked', String(swatch.dataset.tint === draft.tint));
+          }
+          return;
+        }
 
         if (event.target.closest('[data-delete]')) {
           const name = groupTitle(draft);
@@ -541,43 +508,6 @@ export function openGroupSheet(groupToEdit, { isNew = false, onDone } = {}) {
             actionLabel: 'Desfazer', onAction: () => { store.undo(); onDone?.(); }
           });
         }
-      });
-    }
-  });
-}
-
-/* ── Organizar pastas ────────────────────────────────────── */
-
-export function openOrganizeSheet({ onDone } = {}) {
-  let order = store.activeGroups().map((g) => g.id);
-
-  openSheet({
-    title: 'Organizar pastas',
-    rightLabel: 'OK',
-    strongRight: true,
-    onRight: (api) => { store.reorderGroups(order); api.close(); onDone?.(); },
-    render: () => group('', order.map((id, index) => {
-      const g = store.group(id);
-      if (!g) return '';
-      return `<div class="field">
-          <span class="lead" style="width:34px">${ui.folderHTML(g, 0)}</span>
-          <span style="margin-left:10px">${esc(groupTitle(g))}</span>
-          <span class="value">${store.pendingCount(id)}</span>
-          <span class="stepper">
-            <button type="button" data-move="${index}:-1" ${index === 0 ? 'disabled' : ''} aria-label="Subir">↑</button>
-            <button type="button" data-move="${index}:1" ${index === order.length - 1 ? 'disabled' : ''} aria-label="Descer">↓</button>
-          </span>
-        </div>`;
-    }).join(''), 'Use as setas para mudar a ordem na estante.'),
-    mount: (root, api) => {
-      root.addEventListener('click', (event) => {
-        const move = event.target.closest('[data-move]');
-        if (!move) return;
-        const [index, delta] = move.dataset.move.split(':').map(Number);
-        const target = index + delta;
-        if (target < 0 || target >= order.length) return;
-        [order[index], order[target]] = [order[target], order[index]];
-        api.repaint();
       });
     }
   });
@@ -634,11 +564,6 @@ export function openSettingsSheet({ onDone, onSyncNow } = {}) {
           <span class="lead">${icon('i-folder')}<span>Importar de um arquivo</span></span></button>`,
         'O arquivo exportado pode ser guardado no iCloud Drive. Importar junta com o que já existe, mantendo a versão mais recente de cada item.')}
 
-      ${group('Exibição',
-        switchField('Ocultar concluídas nas listas inteligentes', 'i-eye-slash',
-          localStorage.getItem('hideCompleted.smart') !== 'false', 'hideSmart'),
-        'Cada pasta guarda a própria preferência, no menu de 3 pontinhos dela.')}
-
       ${group('Sobre', `
         <div class="field"><span class="lead"><span>Pastas</span></span>
           <span class="value">${store.activeGroups().length}</span></div>
@@ -653,7 +578,6 @@ export function openSettingsSheet({ onDone, onSyncNow } = {}) {
         const key = event.target.dataset.key;
         if (key === 'repo') sync.syncConfig.repo = event.target.value;
         if (key === 'token') sync.syncConfig.token = event.target.value;
-        if (key === 'hideSmart') localStorage.setItem('hideCompleted.smart', String(event.target.checked));
       });
 
       root.addEventListener('click', async (event) => {

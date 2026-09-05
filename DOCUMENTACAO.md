@@ -32,6 +32,10 @@ aparelho. Não expira nunca e não precisa de Xcode.
 
 ## 2. O que ele faz
 
+A **tela inicial tem só duas coisas**: as suas pastas e um `+` para criar
+outra. Nada de busca, contadores ou listas automáticas — as pastas são o app.
+Tudo o mais mora dentro da pasta, no menu **⋯** (inclusive os Ajustes).
+
 | Recurso | Onde está |
 | --- | --- |
 | Estante de pastas, com a pasta abrindo em 3D | `js/main.js`, `styles.css` |
@@ -40,9 +44,15 @@ aparelho. Não expira nunca e não precisa de Xcode.
 | Escrita com Apple Pencil em papel pautado | `js/ink.js` |
 | Tarefas recorrentes | `js/recurrence.js`, `js/sheets.js` |
 | Data, local, notas, prioridade, sinalizar | `js/sheets.js` |
-| Título e fonte da pasta | `js/sheets.js` |
+| Nome e cor da pasta | `js/sheets.js` |
 | Sincronização e backup | `js/sync.js` |
 | Funcionar offline | `sw.js` |
+
+### Personalização
+
+De propósito, só duas coisas: o **nome** e a **cor** da pasta (nove tons).
+Não há escolha de fonte, tamanho, símbolo ou tema — o app tem um desenho só,
+e é ele que segura a coisa toda de pé.
 
 ### Escrita à mão (iPad e iPhone)
 
@@ -125,7 +135,7 @@ item “ressuscitar”.
 
 ## 5. Backup em arquivo
 
-Ajustes → **Exportar tudo** gera um `.json` que você pode guardar no iCloud
+Abra uma pasta → **⋯** → **Ajustes** → **Exportar tudo**. Gera um `.json` que você pode guardar no iCloud
 Drive. **Importar** junta o arquivo com o que já existe, mantendo a versão
 mais recente de cada item — então dá para usar como restauração ou como
 sincronização manual entre aparelhos.
@@ -181,4 +191,6 @@ hora, suba o número em `VERSION` dentro de `sw.js`.
 - **O risco da tarefa é um degradê atrás das letras**, com
   `box-decoration-break: clone`. É o que faz o traço acompanhar o texto
   quando ele quebra em duas linhas — `text-decoration` não é animável.
+- **Paleta de papel quente**, não o cinza-azulado padrão do iOS: o fundo é
+  claro e neutro para que a cor venha só das pastas.
 - **Desfazer** (⌘Z) guarda os últimos 25 estados.

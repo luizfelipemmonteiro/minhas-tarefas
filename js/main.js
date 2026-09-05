@@ -1,5 +1,9 @@
-/* Ponto de partida: carrega os dados, monta a estante, cuida da navegação
-   e mantém a sincronização em segundo plano. */
+/* Ponto de partida: carrega os dados, monta a estante e mantém a
+   sincronização em segundo plano.
+
+   A tela inicial tem só as pastas e o botão de criar. Abrir uma pasta é a
+   única navegação do app, e ela acontece numa camada por cima — por isso
+   não existe pilha de telas aqui. */
 
 import { store, mergeDocuments } from './store.js';
 import * as ui from './ui.js';
@@ -8,46 +12,13 @@ import * as sync from './sync.js';
 
 sheets.bindUI(ui);
 
-const { $, $$ } = ui;
+const { $ } = ui;
 
-const stack = $('#stack');
 const shelfScreen = $('[data-screen="shelf"]');
 const shelfScroll = $('#shelf-scroll');
 const shelfNav = $('.nav', shelfScreen);
-const searchInput = $('#search-input');
 
-/** Telas empilhadas. A estante é sempre a de baixo. */
-const screens = [shelfScreen];
-
-/* ── Navegação ───────────────────────────────────────────── */
-
-function pushScreen(screen) {
-  const current = screens.at(-1);
-  stack.appendChild(screen);
-  screens.push(screen);
-
-  current.dataset.state = 'pushing-back';
-  screen.dataset.state = 'entering';
-
-  ui.afterAnimation(screen, 520, () => {
-    screen.dataset.state = '';
-    current.dataset.state = 'behind';
-  });
-}
-
-function popScreen() {
-  if (screens.length < 2) return;
-  const top = screens.pop();
-  const below = screens.at(-1);
-
-  top.dataset.state = 'leaving';
-  below.dataset.state = 'returning';
-
-  ui.afterAnimation(below, 520, () => { below.dataset.state = ''; });
-  ui.afterAnimation(top, 520, () => { top.remove(); refreshShelf(); });
-}
-
-/* ── Abrir uma pasta ─────────────────────────────────────── */
+/* ── Abrir e fechar uma pasta ────────────────────────────── */
 
 let folderOverlay = null;
 
@@ -70,13 +41,11 @@ function openFolder(groupID) {
     left: `${rect.left}px`, top: `${rect.top}px`,
     width: `${rect.width}px`, height: `${rect.height}px`
   });
-  flyer.innerHTML = ui.folderHTML(group, store.pendingCount(groupID));
+  flyer.innerHTML = ui.folderHTML(group);
 
   const contents = document.createElement('div');
   contents.className = 'contents';
-  contents.appendChild(
-    ui.buildListScreen({ kind: 'group', id: groupID }, { onBack: closeFolder, backLabel: 'Pastas' })
-  );
+  contents.appendChild(ui.buildListScreen(groupID, { onBack: closeFolder }));
 
   overlay.append(flyer, contents);
   $('#overlay-host').appendChild(overlay);
@@ -103,9 +72,8 @@ function closeFolder() {
   const { overlay, flyer, groupID } = folderOverlay;
   folderOverlay = null;
 
-  // Redesenha a estante para o cartão voltar ao lugar certo (a contagem
-  // pode ter mudado), mas mantém ele invisível: quem o usuário vê
-  // encolhendo é a camada de cima.
+  // Redesenha a estante para o cartão voltar ao lugar certo, mas mantém
+  // ele invisível: quem o usuário vê encolhendo é a camada de cima.
   refreshShelf();
   const cell = $(`.folder-cell[data-group="${groupID}"]`);
   cell?.classList.add('is-open');
@@ -133,54 +101,22 @@ function closeFolder() {
 
 function refreshShelf() {
   ui.renderShelf();
-  if (searchInput.value.trim()) ui.renderSearch(searchInput.value);
 }
 
 shelfScroll.addEventListener('scroll', () => {
   shelfNav.classList.toggle('scrolled', shelfScroll.scrollTop > 14);
 });
 
-searchInput.addEventListener('input', () => {
-  $('.search-clear').hidden = !searchInput.value;
-  ui.renderSearch(searchInput.value);
-});
-
 shelfScreen.addEventListener('click', (event) => {
-  if (event.target.closest('[data-action="clear-search"]')) {
-    searchInput.value = '';
-    $('.search-clear').hidden = true;
-    ui.renderSearch('');
-    return;
-  }
-
-  const smart = event.target.closest('[data-smart]');
-  if (smart) {
-    pushScreen(ui.buildListScreen(
-      { kind: 'smart', id: smart.dataset.smart },
-      { onBack: popScreen, backLabel: 'Minhas Tarefas' }
-    ));
-    return;
-  }
-
   const folder = event.target.closest('[data-group]');
   if (folder) { openFolder(folder.dataset.group); return; }
 
-  const result = event.target.closest('[data-task]');
-  if (result) { sheets.openTaskSheet(result.dataset.task, { onDone: refreshShelf }); return; }
-
   if (event.target.closest('[data-action="new-folder"]')) { newFolder(); return; }
 
-  const menuBtn = event.target.closest('[data-action="open-menu"]');
-  if (menuBtn) {
-    ui.openMenu(menuBtn, [
-      { key: 'organize', label: 'Organizar pastas', icon: 'i-sort',
-        action: () => sheets.openOrganizeSheet({ onDone: refreshShelf }) },
-      { key: 'settings', label: 'Ajustes', icon: 'i-gear',
-        action: () => sheets.openSettingsSheet({ onDone: refreshShelf, onSyncNow: syncNow }) },
-      { separator: true },
-      { key: 'undo', label: 'Desfazer', icon: 'i-undo', disabled: !store.canUndo,
-        action: () => { store.undo(); refreshShelf(); } }
-    ]);
+  // Só aparece quando não há nenhuma pasta — sem ela os Ajustes ficariam
+  // inalcançáveis, já que eles moram no menu de dentro da pasta.
+  if (event.target.closest('[data-action="settings"]')) {
+    sheets.openSettingsSheet({ onDone: refreshShelf, onSyncNow: syncNow });
   }
 });
 
@@ -217,7 +153,6 @@ store.onSyncNeeded = () => syncNow();
 
 function repaintAll() {
   refreshShelf();
-  for (const screen of screens) screen.__render?.();
   $('.folder-overlay .screen')?.__render?.();
 }
 
@@ -243,17 +178,13 @@ document.addEventListener('keydown', (event) => {
     newFolder();
     return;
   }
-  if (event.key === 'Escape' && !typing) {
-    if (folderOverlay) closeFolder();
-    else if (screens.length > 1) popScreen();
-  }
+  if (event.key === 'Escape' && !typing && folderOverlay) closeFolder();
 });
 
 /* ── Boot ────────────────────────────────────────────────── */
 
 async function boot() {
   await store.load();
-  store.subscribe(() => { /* redesenhos são explícitos, para não piscar */ });
   refreshShelf();
 
   // Guarda o espaço em disco contra a limpeza automática do navegador.

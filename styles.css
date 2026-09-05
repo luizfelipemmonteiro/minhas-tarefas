@@ -7,38 +7,44 @@
 /* ── Tokens ────────────────────────────────────────────────── */
 
 :root {
-  /* Cores do sistema iOS (modo claro) */
-  --bg:                 #F2F2F7;  /* systemGroupedBackground */
-  --bg-elevated:        #FFFFFF;  /* secondarySystemGroupedBackground */
-  --bg-tertiary:        #F2F2F7;
-  --label:              #000000;
-  --label-secondary:    rgba(60, 60, 67, 0.60);
-  --label-tertiary:     rgba(60, 60, 67, 0.30);
-  --label-quaternary:   rgba(60, 60, 67, 0.18);
-  --separator:          rgba(60, 60, 67, 0.29);
-  --fill:               rgba(120, 120, 128, 0.12);
-  --fill-strong:        rgba(120, 120, 128, 0.20);
-  --nav-blur:           rgba(249, 249, 249, 0.82);
-  --sheet-scrim:        rgba(0, 0, 0, 0.28);
+  /* Papel quente em vez do cinza-azulado padrão: o app inteiro é
+     construído em cima de tons claros, e as pastas é que dão a cor. */
+  --bg:                 #F6F5F1;
+  --bg-elevated:        #FFFFFF;
+  --bg-tertiary:        #F0EFEA;
+  --label:              #1C1B18;
+  --label-secondary:    rgba(40, 38, 33, 0.52);
+  --label-tertiary:     rgba(40, 38, 33, 0.30);
+  --label-quaternary:   rgba(40, 38, 33, 0.14);
+  --separator:          rgba(40, 38, 33, 0.10);
+  --fill:               rgba(40, 38, 33, 0.05);
+  --fill-strong:        rgba(40, 38, 33, 0.10);
+  --nav-blur:           rgba(246, 245, 241, 0.78);
+  --sheet-scrim:        rgba(28, 27, 24, 0.22);
   --paper:              #FFFFFF;
+  --folder-paper:       #FFFFFF;
 
-  --blue:   #007AFF;
-  --indigo: #5856D6;
-  --purple: #AF52DE;
-  --pink:   #FF2D55;
-  --red:    #FF3B30;
-  --orange: #FF9500;
-  --yellow: #FFCC00;
-  --green:  #34C759;
-  --mint:   #00C7BE;
-  --teal:   #30B0C7;
-  --brown:  #A2845E;
-  --gray:   #8E8E93;
+  /* Nove cores de pasta, dessaturadas. É a única personalização
+     que o app oferece, junto com o nome. */
+  --blue:   #6C93E8;
+  --violet: #9186E6;
+  --rose:   #E58FAE;
+  --coral:  #E88B7D;
+  --amber:  #E8A961;
+  --sand:   #D9BC6E;
+  --sage:   #86BF95;
+  --teal:   #6DB9C2;
+  --slate:  #9DA09F;
+
+  --red:    #E06055;
+  --orange: #E8A961;
+  --green:  #86BF95;
+  --gray:   #9DA09F;
 
   --tint: var(--blue);
 
-  /* Curvas do iOS. A primeira é literalmente a curva das folhas
-     modais e do empurrar de telas do UIKit. */
+  /* Curvas do iOS. A primeira é a curva das folhas modais e do
+     empurrar de telas do UIKit. */
   --ease-ios:   cubic-bezier(0.32, 0.72, 0, 1);
   --ease-out:   cubic-bezier(0.25, 0.46, 0.45, 0.94);
   --ease-inout: cubic-bezier(0.4, 0, 0.2, 1);
@@ -49,10 +55,10 @@
   --dur-tap:   140ms;
 
   /* Métricas do HIG */
-  --touch: 44px;            /* alvo mínimo de toque */
-  --margin: 16px;
-  --radius-card: 10px;      /* lista agrupada em ilha */
-  --radius-sheet: 12px;
+  --touch: 44px;
+  --margin: 20px;
+  --radius-card: 14px;
+  --radius-sheet: 14px;
 
   --safe-top:    env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -62,32 +68,36 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg:                 #000000;
-    --bg-elevated:        #1C1C1E;
-    --bg-tertiary:        #2C2C2E;
-    --label:              #FFFFFF;
-    --label-secondary:    rgba(235, 235, 245, 0.60);
-    --label-tertiary:     rgba(235, 235, 245, 0.30);
-    --label-quaternary:   rgba(235, 235, 245, 0.18);
-    --separator:          rgba(84, 84, 88, 0.65);
-    --fill:               rgba(120, 120, 128, 0.24);
-    --fill-strong:        rgba(120, 120, 128, 0.36);
-    --nav-blur:           rgba(20, 20, 22, 0.80);
-    --sheet-scrim:        rgba(0, 0, 0, 0.48);
-    --paper:              #1C1C1E;
+    /* Contraparte do papel quente — cinza escuro, não preto puro. */
+    --bg:                 #1A1917;
+    --bg-elevated:        #242320;
+    --bg-tertiary:        #2E2C29;
+    --label:              #F5F3EE;
+    --label-secondary:    rgba(245, 243, 238, 0.55);
+    --label-tertiary:     rgba(245, 243, 238, 0.30);
+    --label-quaternary:   rgba(245, 243, 238, 0.14);
+    --separator:          rgba(245, 243, 238, 0.10);
+    --fill:               rgba(245, 243, 238, 0.07);
+    --fill-strong:        rgba(245, 243, 238, 0.13);
+    --nav-blur:           rgba(26, 25, 23, 0.80);
+    --sheet-scrim:        rgba(0, 0, 0, 0.45);
+    --paper:              #242320;
+    --folder-paper:       #D8D5CE;
 
-    --blue:   #0A84FF;
-    --indigo: #5E5CE6;
-    --purple: #BF5AF2;
-    --pink:   #FF375F;
-    --red:    #FF453A;
-    --orange: #FF9F0A;
-    --yellow: #FFD60A;
-    --green:  #30D158;
-    --mint:   #63E6E2;
-    --teal:   #40C8E0;
-    --brown:  #AC8E68;
-    --gray:   #98989D;
+    --blue:   #7EA3F0;
+    --violet: #A199EE;
+    --rose:   #EDA0BC;
+    --coral:  #F09B8D;
+    --amber:  #F0B672;
+    --sand:   #E5CD86;
+    --sage:   #97CBA5;
+    --teal:   #7FC7CF;
+    --slate:  #A9ABAB;
+
+    --red:    #F08078;
+    --orange: #F0B672;
+    --green:  #97CBA5;
+    --gray:   #A9ABAB;
   }
 }
 
@@ -227,13 +237,12 @@ svg { width: 1em; height: 1em; display: block; }
 
 .nav-title-large {
   margin: 0;
-  padding: 0 var(--margin) 8px;
+  padding: 2px var(--margin) 20px;
   padding-left: calc(var(--margin) + var(--safe-left));
-  /* Large Title: 34pt / 41pt, tracking +0.37 */
-  font-size: 34px;
-  line-height: 41px;
-  font-weight: 700;
-  letter-spacing: 0.37px;
+  font-size: 32px;
+  line-height: 38px;
+  font-weight: 600;
+  letter-spacing: -0.6px;
   transition: opacity var(--dur-quick) var(--ease-out);
 }
 .nav.scrolled .nav-title-large { opacity: 0; }
@@ -269,92 +278,15 @@ svg { width: 1em; height: 1em; display: block; }
 .nav-text-btn:active { opacity: 0.35; }
 .nav-text-btn svg { font-size: 21px; margin-left: -4px; }
 
-/* ── Busca ─────────────────────────────────────────────────── */
-
-.search-wrap { padding: 0 var(--margin) 8px; }
-
-.search {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 36px;
-  padding: 0 8px;
-  border-radius: 10px;
-  background: var(--fill);
-  color: var(--label-secondary);
-}
-.search-icon { font-size: 16px; flex: none; }
-.search input {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  background: none;
-  outline: none;
-  font-size: 17px;
-  letter-spacing: -0.41px;
-  color: var(--label);
-}
-.search input::placeholder { color: var(--label-secondary); }
-.search input::-webkit-search-cancel-button { display: none; }
-.search-clear { color: var(--label-tertiary); font-size: 17px; display: grid; place-items: center; }
-
-/* ── Listas inteligentes ───────────────────────────────────── */
-
-.smart-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(152px, 1fr));
-  gap: 10px;
-  padding: 4px var(--margin) 0;
-  padding-left: calc(var(--margin) + var(--safe-left));
-  padding-right: calc(var(--margin) + var(--safe-right));
-}
-
-.smart-card {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 11px 12px 10px;
-  border-radius: var(--radius-card);
-  background: var(--bg-elevated);
-  text-align: left;
-  transition: transform var(--dur-tap) var(--ease-out), opacity var(--dur-tap);
-}
-.smart-card:active { transform: scale(0.97); opacity: 0.75; }
-.smart-card .row { display: flex; align-items: flex-start; justify-content: space-between; }
-.smart-card .badge {
-  width: 28px; height: 28px;
-  border-radius: 50%;
-  display: grid; place-items: center;
-  color: #fff; font-size: 15px;
-  background: var(--card-tint, var(--blue));
-}
-.smart-card .count {
-  font-size: 22px; font-weight: 700; letter-spacing: 0.35px;
-  font-variant-numeric: tabular-nums;
-}
-.smart-card .label {
-  font-size: 15px; font-weight: 600; letter-spacing: -0.24px;
-  color: var(--label-secondary);
-}
-
-/* ── Cabeçalho de seção ────────────────────────────────────── */
-
-.section-head {
-  display: flex; align-items: baseline; justify-content: space-between;
-  padding: 26px var(--margin) 12px;
-  padding-left: calc(var(--margin) + var(--safe-left));
-  padding-right: calc(var(--margin) + var(--safe-right));
-}
-.section-head h2 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.45px; }
-.section-count { font-size: 15px; color: var(--label-secondary); font-variant-numeric: tabular-nums; }
-
 /* ── Pastas ────────────────────────────────────────────────── */
+/* São o único conteúdo da tela inicial, então ganham o espaço todo:
+   duas colunas no iPhone, generosas, com ar em volta. */
 
 .folder-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
-  gap: 20px 16px;
-  padding: 0 var(--margin);
+  grid-template-columns: repeat(auto-fill, minmax(146px, 1fr));
+  gap: 30px 20px;
+  padding: 10px var(--margin) 0;
   padding-left: calc(var(--margin) + var(--safe-left));
   padding-right: calc(var(--margin) + var(--safe-right));
 }
@@ -363,16 +295,19 @@ svg { width: 1em; height: 1em; display: block; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 9px;
+  gap: 12px;
   transition: transform var(--dur-tap) var(--ease-out);
 }
-.folder-cell:active { transform: scale(0.955) rotate(-0.7deg); }
+.folder-cell:active { transform: scale(0.955) rotate(-0.8deg); }
 .folder-cell.is-open { opacity: 0; pointer-events: none; }
 
 .folder-name {
   font-size: 15px;
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: -0.24px;
   text-align: center;
-  line-height: 19px;
+  color: var(--label);
   max-width: 100%;
   overflow-wrap: anywhere;
   display: -webkit-box;
@@ -381,73 +316,55 @@ svg { width: 1em; height: 1em; display: block; }
   overflow: hidden;
 }
 
-/* A pasta física: costas + abinha, folhas de papel e a capa da frente.
-   Tudo em CSS para escalar em qualquer tamanho e animar em 3D. */
+/* A pasta física: costas com abinha, uma folha de papel espiando e a
+   capa da frente, que gira em 3D ao abrir. */
 .folder {
   position: relative;
   width: 100%;
-  aspect-ratio: 1.22;
-  perspective: 700px;
+  aspect-ratio: 1.16;
+  perspective: 800px;
   --folder-tint: var(--blue);
 }
 .folder .back {
   position: absolute;
-  left: 0; right: 0; top: 17%; bottom: 0;
+  left: 0; right: 0; top: 15%; bottom: 0;
+  /* As costas ficam nitidamente mais escuras que a capa: é isso que faz
+     a abinha ler como a camada de trás, e não como um recorte solto. */
   background: linear-gradient(to bottom,
-              color-mix(in srgb, var(--folder-tint) 95%, transparent),
-              color-mix(in srgb, var(--folder-tint) 74%, black 8%));
-  border-radius: 11%/13%;
+              color-mix(in srgb, var(--folder-tint) 80%, black 10%),
+              color-mix(in srgb, var(--folder-tint) 68%, black 16%));
+  border-radius: 12%/15%;
 }
 .folder .tab {
   position: absolute;
   left: 0; top: 0;
-  width: 46%; height: 30%;
-  background: linear-gradient(to bottom,
-              color-mix(in srgb, var(--folder-tint) 95%, transparent),
-              color-mix(in srgb, var(--folder-tint) 82%, transparent));
-  border-radius: 9% 20% 0 0 / 26% 34% 0 0;
+  width: 44%; height: 26%;
+  background: color-mix(in srgb, var(--folder-tint) 80%, black 10%);
+  border-radius: 13% 40% 0 0 / 34% 58% 0 0;
 }
 .folder .sheet-paper {
   position: absolute;
-  left: 7%; right: 7%;
-  background: var(--paper);
-  border-radius: 5%/7%;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+  left: 9%; right: 9%;
+  background: var(--folder-paper);
+  border-radius: 4%/6%;
 }
-/* Classes explícitas, e não `:nth-of-type`: todos os filhos da pasta são
-   `div`, então o seletor por tipo casaria com a abinha e as folhas
-   nunca ganhariam altura. */
-.folder .sheet-paper.p1 { top: 21%; bottom: 12%; }
-.folder .sheet-paper.p2 { left: 10%; right: 10%; top: 26%; bottom: 10%; }
+.folder .sheet-paper.p1 { top: 20.5%; bottom: 14%; }
+.folder .sheet-paper.p2 { left: 11%; right: 11%; top: 23%; bottom: 12%; }
+
 .folder .front {
   position: absolute;
-  left: 0; right: 0; top: 33%; bottom: 0;
-  background: linear-gradient(135deg,
-              color-mix(in srgb, var(--folder-tint) 100%, transparent),
-              color-mix(in srgb, var(--folder-tint) 84%, black 6%));
-  border-radius: 11%/15%;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.30),
-              0 4px 10px color-mix(in srgb, var(--folder-tint) 34%, transparent);
+  left: 0; right: 0; top: 29%; bottom: 0;
+  background: linear-gradient(158deg,
+              color-mix(in srgb, var(--folder-tint) 100%, white 10%),
+              color-mix(in srgb, var(--folder-tint) 90%, black 8%));
+  border-radius: 12%/17%;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.38),
+              0 12px 24px -10px color-mix(in srgb, var(--folder-tint) 60%, transparent);
   transform-origin: bottom center;
   transition: transform var(--dur-sheet) var(--ease-ios),
               opacity var(--dur-sheet) var(--ease-ios);
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  padding: 0 11% 9%;
-  color: #fff;
 }
-.folder.open .front { transform: rotateX(-108deg); opacity: 0.55; }
-
-.folder .glyph { font-size: 15px; opacity: 0.95; }
-.folder .pill {
-  margin-left: auto;
-  font-size: 13px; font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.28);
-}
+.folder.open .front { transform: rotateX(-108deg); opacity: 0.5; }
 
 /* Pasta abrindo em tela cheia */
 #overlay-host:empty { display: none; }
@@ -461,8 +378,11 @@ svg { width: 1em; height: 1em; display: block; }
 .folder-overlay .contents {
   position: absolute; inset: 0;
   opacity: 0;
-  transform: scale(0.90);
-  transition: opacity var(--dur-sheet) var(--ease-ios),
+  transform: scale(0.92);
+  /* A opacidade entra bem mais rápido que o crescimento: assim a pasta
+     começa a abrir e o conteúdo aparece logo em seguida, em vez de as
+     duas camadas ficarem meio transparentes uma sobre a outra. */
+  transition: opacity 240ms var(--ease-out) 110ms,
               transform var(--dur-sheet) var(--ease-ios);
 }
 .folder-overlay.expanded .contents { opacity: 1; transform: scale(1); }
@@ -497,11 +417,11 @@ svg { width: 1em; height: 1em; display: block; }
    precisa continuar opaca para tapar os botões de deslizar que ficam
    atrás dela. */
 .task.done > * { opacity: 0.62; }
-.task + .task::before,
-.task + .add-row::before {
+.task-swipe + .task-swipe .task::before,
+.task-swipe + .add-row::before {
   content: "";
   position: absolute;
-  left: 52px; right: 0; top: 0;
+  left: 56px; right: 0; top: 0;
   height: 0.5px;
   background: var(--separator);
 }
@@ -998,27 +918,6 @@ button.field:active { background: var(--fill); }
                        to   { opacity: 1; transform: none; } }
 @keyframes toast-out { to { opacity: 0; transform: translateY(10px) scale(0.96); } }
 
-/* ── Resultados de busca ───────────────────────────────────── */
-
-.search-results { padding: 8px 0 0; }
-.search-row {
-  display: flex; align-items: center; gap: 12px;
-  width: 100%; text-align: left;
-  min-height: 56px;
-  padding: 8px var(--margin);
-  position: relative;
-}
-.search-row + .search-row::before {
-  content: ""; position: absolute; left: calc(var(--margin) + 22px); right: 0; top: 0;
-  height: 0.5px; background: var(--separator);
-}
-.search-row:active { background: var(--fill); }
-.search-row .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
-.search-row .txt { min-width: 0; }
-.search-row .txt b { display: block; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.search-row .txt.done b { text-decoration: line-through; color: var(--label-secondary); }
-.search-row .txt small { font-size: 13px; color: var(--label-secondary); letter-spacing: -0.08px; }
-
 .sentinel { height: 1px; }
 
 /* Enquanto a linha está em edição o campo ocupa a largura toda;
@@ -1035,7 +934,11 @@ button.field:active { background: var(--fill); }
 .swipe-actions {
   position: absolute; inset: 0 0 0 auto; z-index: 0;
   display: flex; align-items: stretch;
+  opacity: 0;
+  pointer-events: none;
 }
+.task-swipe.dragging .swipe-actions,
+.task-swipe.open .swipe-actions { opacity: 1; pointer-events: auto; }
 .swipe-actions button {
   width: 78px; display: grid; place-items: center; gap: 3px;
   color: #fff; font-size: 13px; letter-spacing: -0.08px;
@@ -1065,3 +968,44 @@ button.field:active { background: var(--fill); }
   from { transform: translateX(0); filter: brightness(1); }
   to   { transform: translateX(-28%); filter: brightness(0.86); }
 }
+
+/* ── Ajustes finos do desenho enxuto ───────────────────────── */
+
+/* Prévia grande da pasta no editor: ela é a estrela da folha. */
+.folder-preview { display: flex; justify-content: center; padding: 26px 0 10px; }
+.folder-preview .folder { width: 156px; }
+
+/* Amostras de cor maiores e com mais respiro. */
+/* Grade em vez de flex: com 9 cores, `space-between` deixava a última
+   linha com buracos. */
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
+  gap: 8px;
+  padding: 16px var(--margin);
+  justify-items: center;
+}
+.swatch i { width: 34px; height: 34px; }
+.swatch[aria-checked="true"] i {
+  box-shadow: 0 0 0 3px var(--bg-elevated), 0 0 0 5px currentColor;
+}
+
+/* Link discreto do estado vazio (único caminho para os Ajustes quando
+   ainda não existe pasta nenhuma). */
+.quiet-link {
+  margin-top: 18px;
+  font-size: 15px;
+  letter-spacing: -0.24px;
+  color: var(--label-tertiary);
+  padding: 10px 16px;
+  min-height: var(--touch);
+}
+.quiet-link:active { opacity: 0.5; }
+
+/* A lista dentro da pasta também respira mais. */
+.list { border-radius: var(--radius-card); }
+.list-note { padding: 14px var(--margin) 8px; }
+
+/* Estado vazio mais leve. */
+.empty { padding: 72px 32px; gap: 6px; }
+.empty h3 { font-weight: 600; }

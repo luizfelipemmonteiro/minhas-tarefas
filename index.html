@@ -27,43 +27,22 @@
 <div id="stack" class="stack">
 
   <!-- ══ Estante de pastas ══ -->
+  <!-- Só o título, um botão de nova pasta e as pastas. Nada mais. -->
   <section class="screen" data-screen="shelf">
     <header class="nav">
       <div class="nav-bar">
         <div class="nav-title-inline">Minhas Tarefas</div>
         <div class="nav-actions">
-          <button class="nav-btn" data-action="open-menu" aria-label="Mais">
-            <svg viewBox="0 0 24 24"><use href="#i-ellipsis"/></svg>
-          </button>
           <button class="nav-btn" data-action="new-folder" aria-label="Nova pasta">
             <svg viewBox="0 0 24 24"><use href="#i-plus"/></svg>
           </button>
         </div>
       </div>
       <h1 class="nav-title-large">Minhas Tarefas</h1>
-      <div class="search-wrap">
-        <label class="search">
-          <svg viewBox="0 0 24 24" class="search-icon"><use href="#i-search"/></svg>
-          <input type="search" id="search-input" placeholder="Buscar em todas as tarefas"
-                 autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search">
-          <button type="button" class="search-clear" data-action="clear-search" aria-label="Limpar" hidden>
-            <svg viewBox="0 0 24 24"><use href="#i-xcircle"/></svg>
-          </button>
-        </label>
-      </div>
     </header>
 
     <main class="scroll" id="shelf-scroll">
-      <div class="sentinel" id="title-sentinel"></div>
-      <div id="search-results" class="search-results" hidden></div>
-      <div id="shelf-body">
-        <div class="smart-grid" id="smart-grid"></div>
-        <div class="section-head">
-          <h2>Minhas pastas</h2>
-          <span class="section-count" id="folder-count"></span>
-        </div>
-        <div class="folder-grid" id="folder-grid"></div>
-      </div>
+      <div class="folder-grid" id="folder-grid"></div>
     </main>
   </section>
 
@@ -79,8 +58,6 @@
 <svg style="display:none" aria-hidden="true">
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/></symbol>
   <symbol id="i-ellipsis" viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="18.5" cy="12" r="1.8" fill="currentColor"/></symbol>
-  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15.8 15.8L21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
-  <symbol id="i-xcircle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.2" fill="currentColor"/><path d="M9 9l6 6M15 9l-6 6" stroke="var(--bg-elevated)" stroke-width="2" stroke-linecap="round"/></symbol>
   <symbol id="i-back" viewBox="0 0 24 24"><path d="M14.5 5L8 12l6.5 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 10.5v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="7.6" r="1.15" fill="currentColor"/></symbol>
@@ -98,7 +75,6 @@
   <symbol id="i-sort" viewBox="0 0 24 24"><path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-undo" viewBox="0 0 24 24"><path d="M4 9h10.5a5.5 5.5 0 110 11H8" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M7.5 5L3.5 9l4 4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3.5 7.2a2 2 0 012-2h3.2l1.8 2.2h8a2 2 0 012 2v8.4a2 2 0 01-2 2h-13a2 2 0 01-2-2z" fill="currentColor"/></symbol>
-  <symbol id="i-tray" viewBox="0 0 24 24"><path d="M3.5 14h4l1.3 2.3h6.4L16.5 14h4M3.5 14l2.6-8.2a1.6 1.6 0 011.5-1.1h8.8a1.6 1.6 0 011.5 1.1L20.5 14v3.6a2 2 0 01-2 2h-13a2 2 0 01-2-2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 6.8V12l3.4 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-checkcircle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="currentColor"/><path d="M7.8 12.3l2.8 2.8 5.6-5.8" fill="none" stroke="var(--bg-elevated)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3.5v11" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M8.4 7.1L12 3.5l3.6 3.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.5 11H5a1.5 1.5 0 00-1.5 1.5v6.5A1.5 1.5 0 005 20.5h14a1.5 1.5 0 001.5-1.5v-6.5A1.5 1.5 0 0019 11h-1.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>

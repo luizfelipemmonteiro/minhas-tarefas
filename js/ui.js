@@ -1,12 +1,11 @@
 /* Telas: estante, lista de tarefas, menus, avisos e a folha de escrita. */
 
 import {
-  store, TINTS, TINT_LABEL, PRIORITY_MARK, SMART_LISTS,
-  FONT_FAMILIES, groupTitle, taskLabel, hasDetails, isOverdue
+  store, PRIORITY_MARK, groupTitle, taskLabel, hasDetails, isOverdue
 } from './store.js';
 import { inkSVG, InkPad } from './ink.js';
 import { recurrenceSummary } from './recurrence.js';
-import { openTaskSheet, openGroupSheet, openSettingsSheet, openOrganizeSheet } from './sheets.js';
+import { openTaskSheet, openGroupSheet, openSettingsSheet } from './sheets.js';
 import { updateBadge } from './sync.js';
 
 /* ── Utilitários ─────────────────────────────────────────── */
@@ -143,96 +142,46 @@ export function openMenu(anchor, items) {
 
 /* ── Pasta desenhada ─────────────────────────────────────── */
 
-export function folderHTML(group, count, { open = false } = {}) {
+export function folderHTML(group, { open = false } = {}) {
   return `<div class="folder ${open ? 'open' : ''}" style="--folder-tint:${tintVar(group.tint)}">
       <div class="tab"></div>
       <div class="back"></div>
       <div class="sheet-paper p1"></div>
-      ${count > 1 ? '<div class="sheet-paper p2"></div>' : ''}
-      <div class="front">
-        <span class="glyph">${group.symbol ? esc(group.symbol) : ''}</span>
-        ${count > 0 ? `<span class="pill">${count}</span>` : ''}
-      </div>
+      <div class="front"></div>
     </div>`;
 }
 
-const titleStyleCSS = (style = {}) =>
-  `font-family:${FONT_FAMILIES[style.family]?.css || FONT_FAMILIES.rounded.css};` +
-  `font-weight:${style.weight || 700};font-size:${Math.round((style.size || 22) * 0.7)}px;` +
-  `font-style:${style.italic ? 'italic' : 'normal'}`;
-
 /* ── Estante ─────────────────────────────────────────────── */
 
+/** A tela inicial mostra só as pastas. Nada de contadores, busca ou
+    listas automáticas: quem manda na tela são as pastas. */
 export function renderShelf() {
-  const smart = $('#smart-grid');
-  smart.innerHTML = SMART_LISTS.map((list) => `
-    <button type="button" class="smart-card" data-smart="${list.id}"
-            style="--card-tint:${tintVar(list.tint)}">
-      <span class="row">
-        <span class="badge">${icon(list.icon)}</span>
-        <span class="count">${store.smartCount(list.id)}</span>
-      </span>
-      <span class="label">${esc(list.title)}</span>
-    </button>`).join('');
-
   const groups = store.activeGroups();
-  $('#folder-count').textContent = groups.length || '';
-
   const grid = $('#folder-grid');
+
   if (!groups.length) {
     grid.innerHTML = `
       <div class="empty" style="grid-column:1/-1">
-        <div class="big">${icon('i-folder')}</div>
         <h3>Nenhuma pasta ainda</h3>
-        <p>Crie uma pasta para separar suas tarefas por assunto.</p>
+        <p>Toque em + para criar a primeira.</p>
+        <button type="button" class="quiet-link" data-action="settings">Ajustes</button>
       </div>`;
   } else {
     grid.innerHTML = groups.map((group) => `
-      <button type="button" class="folder-cell" data-group="${group.id}">
-        ${folderHTML(group, store.pendingCount(group.id))}
-        <span class="folder-name" style="${titleStyleCSS(group.titleStyle)}">${esc(groupTitle(group))}</span>
+      <button type="button" class="folder-cell" data-group="${group.id}"
+              aria-label="${esc(groupTitle(group))}">
+        ${folderHTML(group)}
+        <span class="folder-name">${esc(groupTitle(group))}</span>
       </button>`).join('');
   }
 
   updateBadge(store.smartCount('today'));
 }
 
-export function renderSearch(query) {
-  const box = $('#search-results');
-  const body = $('#shelf-body');
-  const results = store.search(query);
-
-  if (!query.trim()) {
-    box.hidden = true;
-    body.hidden = false;
-    return;
-  }
-  box.hidden = false;
-  body.hidden = true;
-
-  if (!results.length) {
-    box.innerHTML = `<div class="empty"><div class="big">${icon('i-search')}</div>
-      <h3>Nada encontrado</h3><p>Nenhuma tarefa combina com “${esc(query)}”.</p></div>`;
-    return;
-  }
-
-  box.innerHTML = results.map((task) => {
-    const group = store.group(task.groupID);
-    return `<button type="button" class="search-row" data-task="${task.id}">
-        <span class="dot" style="background:${tintVar(group?.tint)}"></span>
-        <span class="txt ${task.isCompleted ? 'done' : ''}">
-          <b>${esc(taskLabel(task))}</b>
-          <small>${esc(group ? groupTitle(group) : '')}</small>
-        </span>
-      </button>`;
-  }).join('');
-}
-
 /* ── Linha de tarefa ─────────────────────────────────────── */
 
-function subtitleHTML(task, groupName) {
+function subtitleHTML(task) {
   const bits = [];
-  if (groupName) bits.push({ icon: 'i-folder', text: groupName });
   if (task.dueDate) bits.push({ icon: 'i-calendar', text: dueText(task), overdue: isOverdue(task) });
   if (task.recurrence) bits.push({ icon: 'i-repeat', text: recurrenceSummary(task.recurrence) });
   if (task.location) bits.push({ icon: 'i-pin', text: task.location });
@@ -243,7 +192,7 @@ function subtitleHTML(task, groupName) {
   ).join('')}</span>`;
 }
 
-export function taskHTML(task, { groupName = '' } = {}) {
+export function taskHTML(task) {
   const content = task.ink
     ? `<span class="task-content ink" style="--ink-h:${Math.min(52, Math.max(24, task.inkHeight || 32))}px">
          ${inkSVG(task.ink)}<span class="strike"></span></span>`
@@ -264,7 +213,7 @@ export function taskHTML(task, { groupName = '' } = {}) {
           <span class="ring"></span><span class="fill"></span>
           <span class="tick">${icon('i-check')}</span>
         </button>
-        <span class="task-body">${content}${subtitleHTML(task, groupName)}</span>
+        <span class="task-body">${content}${subtitleHTML(task)}</span>
         <span class="task-actions">
           ${task.isFlagged ? `<span class="flagged">${icon('i-flag')}</span>` : ''}
           ${showInfo ? `<button type="button" class="info" data-details="${task.id}"
@@ -284,7 +233,7 @@ function attachSwipe(container) {
   const closeOpen = () => {
     if (!openRow) return;
     openRow.querySelector('.task').style.transform = '';
-    openRow.classList.remove('dragging');
+    openRow.classList.remove('dragging', 'open');
     openRow = null;
   };
 
@@ -333,9 +282,11 @@ function attachSwipe(container) {
       deleteWithUndo(id);
     } else if (locked === 'x' && dx < -ACTIONS_WIDTH * 0.5) {
       task.style.transform = `translateX(${-ACTIONS_WIDTH}px)`;
+      row.classList.add('open');
       openRow = row;
     } else {
       task.style.transform = '';
+      row.classList.remove('open');
       if (openRow === row) openRow = null;
     }
     row = null;
@@ -362,56 +313,20 @@ export function deleteWithUndo(taskID) {
 
 /* ── Tela de lista ───────────────────────────────────────── */
 
-/** @typedef {{kind:'group'|'smart', id:string}} ListSource */
-
-export function listTitle(source) {
-  if (source.kind === 'group') {
-    const group = store.group(source.id);
-    return group ? groupTitle(group) : 'Pasta';
-  }
-  return SMART_LISTS.find((l) => l.id === source.id)?.title || '';
+function hidesCompleted(groupID) {
+  return Boolean(store.group(groupID)?.hidesCompleted);
 }
 
-export function listTint(source) {
-  if (source.kind === 'group') return store.group(source.id)?.tint || 'blue';
-  return SMART_LISTS.find((l) => l.id === source.id)?.tint || 'blue';
-}
-
-function hidesCompleted(source) {
-  if (source.kind === 'group') return Boolean(store.group(source.id)?.hidesCompleted);
-  if (source.id === 'completed') return false;
-  return localStorage.getItem('hideCompleted.smart') !== 'false';
-}
-
-function setHidesCompleted(source, value) {
-  if (source.kind === 'group') {
-    const group = store.group(source.id);
-    if (group) store.updateGroup({ ...group, hidesCompleted: value });
-  } else {
-    localStorage.setItem('hideCompleted.smart', String(value));
-  }
-}
-
-function listItems(source) {
-  const hide = hidesCompleted(source);
-  return source.kind === 'group'
-    ? store.items(source.id, hide)
-    : store.smartItems(source.id, hide);
-}
-
-/** Monta a tela de uma pasta ou lista inteligente. */
-export function buildListScreen(source, { onBack, backLabel = 'Pastas' }) {
+/** Monta a tela de uma pasta. */
+export function buildListScreen(groupID, { onBack }) {
   const screen = document.createElement('section');
   screen.className = 'screen';
-  screen.style.setProperty('--tint', tintVar(listTint(source)));
-
-  const canAdd = source.kind === 'group';
 
   screen.innerHTML = `
     <header class="nav">
       <div class="nav-bar">
         <span class="nav-leading">
-          <button type="button" class="nav-text-btn" data-back>${icon('i-back')}<span>${esc(backLabel)}</span></button>
+          <button type="button" class="nav-text-btn" data-back>${icon('i-back')}<span>Pastas</span></button>
         </span>
         <span class="nav-title-inline"></span>
         <span class="nav-actions">
@@ -421,39 +336,41 @@ export function buildListScreen(source, { onBack, backLabel = 'Pastas' }) {
       <h1 class="nav-title-large"></h1>
     </header>
     <main class="scroll" data-scroll></main>
-    ${canAdd ? `<div class="toolbar">
-        <button type="button" class="primary" data-add>${icon('i-plus')}<span>Nova tarefa</span></button>
-        <span class="spacer"></span>
-        <button type="button" class="primary" data-ink aria-label="Escrever à mão">${icon('i-pencil')}</button>
-      </div>` : ''}`;
+    <div class="toolbar">
+      <button type="button" class="primary" data-add>${icon('i-plus')}<span>Nova tarefa</span></button>
+      <span class="spacer"></span>
+      <button type="button" class="primary" data-ink aria-label="Escrever à mão">${icon('i-pencil')}</button>
+    </div>`;
 
   const scroll = $('[data-scroll]', screen);
   const nav = $('.nav', screen);
   scroll.addEventListener('scroll', () => nav.classList.toggle('scrolled', scroll.scrollTop > 14));
 
-  let closeSwipe = attachSwipe(scroll);
+  attachSwipe(scroll);
 
   function render() {
-    const title = listTitle(source);
+    const group = store.group(groupID);
+    if (!group) { onBack?.(); return; }
+
+    const title = groupTitle(group);
     $('.nav-title-inline', screen).textContent = title;
     $('.nav-title-large', screen).textContent = title;
-    screen.style.setProperty('--tint', tintVar(listTint(source)));
+    screen.style.setProperty('--tint', tintVar(group.tint));
 
-    const items = listItems(source);
-    const hidden = source.kind === 'group' ? store.completedCount(source.id) : 0;
-    const showNote = hidesCompleted(source) && hidden > 0;
-
-    const rows = items.map((task) => taskHTML(task, {
-      groupName: source.kind === 'group' ? '' : (store.group(task.groupID)?.title || '')
-    })).join('');
+    const hide = hidesCompleted(groupID);
+    const items = store.items(groupID, hide);
+    const hidden = store.completedCount(groupID);
 
     scroll.innerHTML = `
-      ${showNote ? `<div class="list-note">${hidden === 1 ? '1 concluída oculta' : `${hidden} concluídas ocultas`}</div>` : ''}
-      ${items.length || canAdd ? `<div class="list">${rows}${canAdd
-        ? `<button type="button" class="add-row" data-add><span class="plus">${icon('i-plus')}</span>Nova tarefa</button>`
-        : ''}</div>` : ''}
-      ${!items.length && !canAdd ? `<div class="empty"><div class="big">${icon('i-checkcircle')}</div>
-        <h3>Nada por aqui</h3><p>Tarefas desta lista aparecem aqui.</p></div>` : ''}`;
+      ${hide && hidden > 0
+        ? `<div class="list-note">${hidden === 1 ? '1 concluída oculta' : `${hidden} concluídas ocultas`}</div>`
+        : ''}
+      <div class="list">
+        ${items.map((task) => taskHTML(task)).join('')}
+        <button type="button" class="add-row" data-add>
+          <span class="plus">${icon('i-plus')}</span>Nova tarefa
+        </button>
+      </div>`;
   }
 
   /* Ações */
@@ -492,89 +409,91 @@ export function buildListScreen(source, { onBack, backLabel = 'Pastas' }) {
   }
 
   function submitRow(taskID, value) {
-    if (!canAdd) return;
     if (!value.trim()) { $('input.task-text', screen)?.blur(); return; }
-    const pending = store.items(source.id, true);
+    const pending = store.items(groupID, true);
     const position = pending.findIndex((t) => t.id === taskID);
-    const created = store.addTask(source.id, {}, position >= 0 ? position + 1 : null);
+    const created = store.addTask(groupID, {}, position >= 0 ? position + 1 : null);
     render();
     startEditing(created.id);
   }
 
   function addTask() {
-    if (!canAdd) return;
     tap();
-    const created = store.addTask(source.id);
+    const created = store.addTask(groupID);
     render();
     startEditing(created.id);
     scroll.scrollTo({ top: scroll.scrollHeight, behavior: 'smooth' });
   }
 
   function openMenuFor(anchor) {
-    const hide = hidesCompleted(source);
+    const hide = hidesCompleted(groupID);
+    const done = store.completedCount(groupID);
+
     const items = [
       {
         key: 'hide',
         label: hide ? 'Mostrar tarefas concluídas' : 'Ocultar tarefas concluídas',
         icon: hide ? 'i-eye' : 'i-eye-slash',
-        action: () => { setHidesCompleted(source, !hide); render(); }
+        action: () => {
+          const group = store.group(groupID);
+          if (group) store.updateGroup({ ...group, hidesCompleted: !hide });
+          render();
+        }
+      },
+      { separator: true },
+      {
+        key: 'edit', label: 'Renomear e cor', icon: 'i-pencil',
+        action: () => openGroupSheet(store.group(groupID), { onDone: render })
+      },
+      {
+        key: 'ink', label: 'Escrever à mão', icon: 'i-pencil',
+        action: () => openInkScreen(groupID, render)
       }
     ];
 
-    if (source.kind === 'group') {
+    if (done > 0) {
       items.push({ separator: true });
       items.push({
-        key: 'edit', label: 'Editar pasta', icon: 'i-pencil',
-        action: () => openGroupSheet(store.group(source.id), { onDone: render })
-      });
-      items.push({
-        key: 'ink', label: 'Escrever à mão', icon: 'i-pencil',
-        action: () => openInkScreen(source.id, render)
-      });
-
-      const done = store.completedCount(source.id);
-      if (done > 0) {
-        items.push({ separator: true });
-        items.push({
-          key: 'clear', label: 'Apagar concluídas', icon: 'i-trash', danger: true,
-          action: () => {
-            const ids = store.items(source.id, false).filter((t) => t.isCompleted).map((t) => t.id);
-            store.deleteTasks(ids);
-            toast(`${ids.length} ${ids.length === 1 ? 'tarefa apagada' : 'tarefas apagadas'}`, {
-              actionLabel: 'Desfazer', onAction: () => store.undo()
-            });
-            render();
-          }
-        });
-      }
-
-      items.push({ separator: true });
-      items.push({
-        key: 'delete', label: 'Apagar pasta', icon: 'i-trash', danger: true,
+        key: 'clear', label: 'Apagar concluídas', icon: 'i-trash', danger: true,
         action: () => {
-          const name = listTitle(source);
-          store.deleteGroup(source.id);
-          onBack?.();
-          toast(`Pasta “${name}” apagada`, { actionLabel: 'Desfazer', onAction: () => store.undo() });
+          const ids = store.items(groupID, false).filter((t) => t.isCompleted).map((t) => t.id);
+          store.deleteTasks(ids);
+          toast(`${ids.length} ${ids.length === 1 ? 'tarefa apagada' : 'tarefas apagadas'}`, {
+            actionLabel: 'Desfazer', onAction: () => store.undo()
+          });
+          render();
         }
       });
     }
+
+    // Os Ajustes moram aqui porque a tela inicial não tem mais barra de
+    // ferramentas — lá só existem as pastas e o botão de criar.
+    items.push({ separator: true });
+    items.push({
+      key: 'settings', label: 'Ajustes', icon: 'i-gear',
+      action: () => openSettingsSheet({ onDone: render })
+    });
+    items.push({
+      key: 'delete', label: 'Apagar pasta', icon: 'i-trash', danger: true,
+      action: () => {
+        const name = groupTitle(store.group(groupID) || {});
+        store.deleteGroup(groupID);
+        onBack?.();
+        toast(`Pasta “${name}” apagada`, { actionLabel: 'Desfazer', onAction: () => store.undo() });
+      }
+    });
 
     openMenu(anchor, items);
   }
 
   screen.addEventListener('click', (event) => {
-    const back = event.target.closest('[data-back]');
-    if (back) { onBack?.(); return; }
+    if (event.target.closest('[data-back]')) { onBack?.(); return; }
 
     const menuBtn = event.target.closest('[data-menu]');
     if (menuBtn) { openMenuFor(menuBtn); return; }
 
-    const add = event.target.closest('[data-add]');
-    if (add) { addTask(); return; }
-
-    const inkBtn = event.target.closest('[data-ink]');
-    if (inkBtn) { openInkScreen(source.id, render); return; }
+    if (event.target.closest('[data-add]')) { addTask(); return; }
+    if (event.target.closest('[data-ink]')) { openInkScreen(groupID, render); return; }
 
     const check = event.target.closest('[data-check]');
     if (check) {
@@ -585,9 +504,7 @@ export function buildListScreen(source, { onBack, backLabel = 'Pastas' }) {
       check.closest('.task').classList.toggle('done', !task.isCompleted);
       // Deixa o risco correr antes de reordenar a lista.
       setTimeout(render, 340);
-      if (spawned) {
-        toast(`Próxima: ${dayText(spawned.dueDate)}`);
-      }
+      if (spawned) toast(`Próxima: ${dayText(spawned.dueDate)}`);
       return;
     }
 

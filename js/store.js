@@ -9,41 +9,16 @@ const DB_STORE = 'kv';
 const DOC_KEY = 'documento';
 
 export const TINTS = [
-  'blue', 'indigo', 'purple', 'pink', 'red', 'orange',
-  'yellow', 'green', 'mint', 'teal', 'brown', 'gray'
+  'blue', 'violet', 'rose', 'coral', 'amber', 'sand', 'sage', 'teal', 'slate'
 ];
 
 export const TINT_LABEL = {
-  blue: 'Azul', indigo: 'Índigo', purple: 'Roxo', pink: 'Rosa',
-  red: 'Vermelho', orange: 'Laranja', yellow: 'Amarelo', green: 'Verde',
-  mint: 'Menta', teal: 'Turquesa', brown: 'Marrom', gray: 'Grafite'
+  blue: 'Azul', violet: 'Violeta', rose: 'Rosa', coral: 'Coral',
+  amber: 'Âmbar', sand: 'Areia', sage: 'Sálvia', teal: 'Turquesa', slate: 'Ardósia'
 };
 
 export const PRIORITY_LABEL = { 0: 'Nenhuma', 1: 'Baixa', 2: 'Média', 3: 'Alta' };
 export const PRIORITY_MARK = { 0: '', 1: '!', 2: '!!', 3: '!!!' };
-
-export const SMART_LISTS = [
-  { id: 'today',     title: 'Hoje',        icon: 'i-calendar',    tint: 'blue' },
-  { id: 'scheduled', title: 'Agendadas',   icon: 'i-clock',       tint: 'red' },
-  { id: 'flagged',   title: 'Sinalizadas', icon: 'i-flag',        tint: 'orange' },
-  { id: 'all',       title: 'Todas',       icon: 'i-tray',        tint: 'gray' },
-  { id: 'completed', title: 'Concluídas',  icon: 'i-check',       tint: 'green' }
-];
-
-export const DEFAULT_TITLE_STYLE = {
-  family: 'rounded', weight: '700', size: 22, italic: false
-};
-
-export const FONT_FAMILIES = {
-  system:     { label: 'São Francisco', css: '-apple-system, BlinkMacSystemFont, system-ui, sans-serif' },
-  rounded:    { label: 'Arredondada',   css: 'ui-rounded, "SF Pro Rounded", -apple-system, system-ui, sans-serif' },
-  serif:      { label: 'Serifada',      css: 'ui-serif, Georgia, "Times New Roman", serif' },
-  monospaced: { label: 'Monoespaçada',  css: 'ui-monospace, "SF Mono", Menlo, monospace' }
-};
-
-export const FONT_WEIGHTS = {
-  300: 'Fina', 400: 'Normal', 500: 'Média', 600: 'Seminegrito', 700: 'Negrito', 800: 'Pesada'
-};
 
 export const uid = () =>
   (crypto.randomUUID ? crypto.randomUUID()
@@ -101,9 +76,7 @@ export function makeGroup(sortIndex, tint = 'blue') {
   return {
     id: uid(),
     title: '',
-    titleStyle: { ...DEFAULT_TITLE_STYLE },
     tint,
-    symbol: null,
     sortIndex,
     hidesCompleted: false,
     createdAt: nowISO(),
@@ -517,7 +490,6 @@ class Store {
   seed() {
     const group = makeGroup(0, 'blue');
     group.title = 'Primeiros passos';
-    group.symbol = '✨';
     this.groups = [group];
 
     const lines = [
