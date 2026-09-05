@@ -50,13 +50,15 @@ export function inkAspect(ink) {
 
 export class InkPad {
   /**
-   * @param {HTMLElement} layer  contêiner com as pautas
+   * @param {HTMLElement} layer     contêiner com as pautas
    * @param {HTMLCanvasElement} canvas
+   * @param {HTMLElement} scroller  quem rola (a área de escrita)
    * @param {object} options  { lineHeight, lineCount, gutter, onLinesChanged }
    */
-  constructor(layer, canvas, options) {
+  constructor(layer, canvas, scroller, options) {
     this.layer = layer;
     this.canvas = canvas;
+    this.scroller = scroller;
     this.ctx = canvas.getContext('2d');
 
     this.lineHeight = options.lineHeight ?? 62;
@@ -70,8 +72,12 @@ export class InkPad {
     this.current = null;
     this.activePointer = null;
     this.mode = 'draw';          // 'draw' | 'erase'
-    this.penSeen = false;        // já vi um Apple Pencil? então dedo rola a página
+    this.touchMode = options.touchMode === 'draw' ? 'draw' : 'scroll';  // o que o dedo faz
     this.idleTimer = null;
+
+    // Estado da rolagem manual (ver comentário em `startScroll`).
+    this.scrollPointer = null;
+    this.inertia = 0;
 
     this.onPointerDown = this.onPointerDown.bind(this);
     this.onPointerMove = this.onPointerMove.bind(this);
@@ -81,18 +87,17 @@ export class InkPad {
     canvas.addEventListener('pointermove', this.onPointerMove);
     canvas.addEventListener('pointerup', this.onPointerUp);
     canvas.addEventListener('pointercancel', this.onPointerUp);
-    canvas.addEventListener('pointerleave', this.onPointerUp);
 
     this.resize();
   }
 
   destroy() {
     clearTimeout(this.idleTimer);
+    cancelAnimationFrame(this.inertiaFrame);
     this.canvas.removeEventListener('pointerdown', this.onPointerDown);
     this.canvas.removeEventListener('pointermove', this.onPointerMove);
     this.canvas.removeEventListener('pointerup', this.onPointerUp);
     this.canvas.removeEventListener('pointercancel', this.onPointerUp);
-    this.canvas.removeEventListener('pointerleave', this.onPointerUp);
   }
 
   get height() { return this.lineHeight * this.lineCount; }
@@ -112,14 +117,19 @@ export class InkPad {
     this.redraw();
   }
 
-  /* ── Entrada ── */
+  /* ── Entrada ──────────────────────────────────────────────
+     O canvas usa `touch-action: none`. Sem isso o Safari do iPad
+     interpreta um traço vertical do Apple Pencil como rolagem e a tela
+     balança em vez de escrever — `preventDefault` não desfaz isso, porque
+     `touch-action` é decidido antes do evento chegar ao JavaScript.
 
-  shouldDraw(event) {
-    if (event.pointerType === 'pen') return true;
-    if (event.pointerType === 'mouse') return true;
-    // Dedo: só desenha enquanto nenhum Apple Pencil apareceu.
-    // Depois disso o dedo passa a rolar a página, como no app Notas.
-    return !this.penSeen;
+     Como o navegador não rola mais sozinho, a rolagem é feita aqui: a
+     caneta sempre desenha, e o dedo rola (ou desenha, se você trocar no
+     botão "Dedo" — para quem não tem Apple Pencil). */
+
+  wantsToDraw(event) {
+    if (event.pointerType === 'pen' || event.pointerType === 'mouse') return true;
+    return this.touchMode === 'draw';
   }
 
   pointFrom(event) {
@@ -134,13 +144,11 @@ export class InkPad {
   }
 
   onPointerDown(event) {
-    if (event.pointerType === 'pen') this.penSeen = true;
-    if (!this.shouldDraw(event)) return;
-
     event.preventDefault();
-    // A captura mantém o traço vivo se o dedo/caneta sair do canvas.
-    // Se o navegador recusar, seguimos desenhando mesmo assim — perder a
-    // captura é um detalhe, perder o traço inteiro não.
+    cancelAnimationFrame(this.inertiaFrame);
+
+    if (!this.wantsToDraw(event)) { this.startScroll(event); return; }
+
     try { this.canvas.setPointerCapture(event.pointerId); } catch { /* segue */ }
     this.activePointer = event.pointerId;
     clearTimeout(this.idleTimer);
@@ -159,6 +167,7 @@ export class InkPad {
   }
 
   onPointerMove(event) {
+    if (event.pointerId === this.scrollPointer) { this.moveScroll(event); return; }
     if (event.pointerId !== this.activePointer) return;
     event.preventDefault();
 
@@ -192,6 +201,7 @@ export class InkPad {
   }
 
   onPointerUp(event) {
+    if (event.pointerId === this.scrollPointer) { this.endScroll(); return; }
     if (event.pointerId !== this.activePointer) return;
     this.activePointer = null;
 
@@ -202,6 +212,48 @@ export class InkPad {
 
     this.scheduleIdle();
   }
+
+  /* ── Rolagem feita à mão, com inércia ── */
+
+  startScroll(event) {
+    this.scrollPointer = event.pointerId;
+    this.scrollFromY = event.clientY;
+    this.scrollFromTop = this.scroller.scrollTop;
+    this.lastY = event.clientY;
+    this.lastTime = performance.now();
+    this.velocity = 0;
+    try { this.canvas.setPointerCapture(event.pointerId); } catch { /* segue */ }
+  }
+
+  moveScroll(event) {
+    const top = this.scrollFromTop - (event.clientY - this.scrollFromY);
+    this.scroller.scrollTop = top;
+
+    // Amostras muito juntas dariam um `dt` quase zero e uma velocidade
+    // absurda — que viraria um arremesso violento ao soltar o dedo.
+    const now = performance.now();
+    const dt = now - this.lastTime;
+    if (dt >= 4) {
+      const bruta = (event.clientY - this.lastY) / dt;
+      this.velocity = Math.max(-3, Math.min(3, bruta));   // px por ms
+      this.lastY = event.clientY;
+      this.lastTime = now;
+    }
+  }
+
+  endScroll() {
+    this.scrollPointer = null;
+    let v = this.velocity * 16;          // pixels por quadro
+    const step = () => {
+      if (Math.abs(v) < 0.4) return;
+      this.scroller.scrollTop -= v;
+      v *= 0.94;
+      this.inertiaFrame = requestAnimationFrame(step);
+    };
+    step();
+  }
+
+  setTouchMode(mode) { this.touchMode = mode; }
 
   /** Só avisamos que as linhas mudaram depois de uma pausa — assim uma
       palavra inteira vira uma tarefa, e não cada traço solto. */

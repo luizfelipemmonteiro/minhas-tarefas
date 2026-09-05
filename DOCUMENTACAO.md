@@ -71,10 +71,18 @@ Dentro de uma pasta, o botão do lápis abre um papel pautado.
 entra na lista sozinha — com a sua letra, não com texto digitado.
 
 O Apple Pencil chega ao Safari como Pointer Event com pressão e inclinação,
-então o traço tem a mesma sensibilidade de um app nativo. Assim que o app vê
-uma caneta, o **dedo passa a rolar a página** em vez de desenhar, igual ao app
-Notas. Reescrever em cima da mesma pauta atualiza a mesma tarefa; apagar a
-linha com a borracha apaga a tarefa.
+então o traço tem a mesma sensibilidade de um app nativo. **A caneta sempre
+desenha e o dedo rola a página**, igual ao app Notas; quem não tem Apple
+Pencil troca no botão **Dedo**, e a escolha fica guardada. Reescrever em cima
+da mesma pauta atualiza a mesma tarefa; apagar a linha com a borracha apaga a
+tarefa.
+
+> **Por que a rolagem é feita à mão.** O canvas usa `touch-action: none`. Com
+> qualquer outro valor, o Safari do iPad interpreta um traço vertical do Apple
+> Pencil como rolagem e a tela balança em vez de escrever — e `preventDefault`
+> não resolve, porque `touch-action` é decidido antes de o evento chegar ao
+> JavaScript. Em troca de tirar a rolagem do navegador, o `InkPad` a
+> reimplementa, com inércia e velocidade limitada.
 
 A caligrafia é guardada como vetor e desenhada como **silhueta**, recebendo a
 cor do app — é isso que a mantém legível no modo claro e no escuro. Uma linha

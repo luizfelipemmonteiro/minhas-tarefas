@@ -603,7 +603,7 @@ export function openInkScreen(groupID, onDone) {
       <span class="side right"><button type="button" class="nav-text-btn strong" data-done>Concluir</button></span>
     </header>
     <div class="ink-canvas-wrap">
-      <div class="ink-hint">${icon('i-pencil')}<span>Escreva uma tarefa por linha. Ao parar, ela entra na lista sozinha.</span></div>
+      <div class="ink-hint">${icon('i-pencil')}<span>Uma tarefa por linha. O dedo rola a página — toque em “Dedo” para desenhar com ele.</span></div>
       <div class="ink-layer" style="min-height:${LINE_HEIGHT * LINE_COUNT}px;
            background-image:repeating-linear-gradient(to bottom, transparent, transparent ${LINE_HEIGHT - 1}px,
              var(--separator) ${LINE_HEIGHT - 1}px, var(--separator) ${LINE_HEIGHT}px);
@@ -614,8 +614,9 @@ export function openInkScreen(groupID, onDone) {
     <div class="ink-tools">
       <button type="button" class="tool" data-tool="draw" aria-pressed="true">${icon('i-pencil')}<span>Caneta</span></button>
       <button type="button" class="tool" data-tool="erase" aria-pressed="false">Borracha</button>
-      <button type="button" class="tool" data-undo>${icon('i-undo')}</button>
+      <button type="button" class="tool" data-undo aria-label="Desfazer traço">${icon('i-undo')}</button>
       <span style="flex:1"></span>
+      <button type="button" class="tool" data-touch>Dedo</button>
       <button type="button" class="tool" data-clear>Limpar</button>
     </div>`;
 
@@ -637,7 +638,10 @@ export function openInkScreen(groupID, onDone) {
 
   const lineTasks = new Map();   // índice da linha → id da tarefa
 
-  const pad = new InkPad(layer, canvas, {
+  const modoDedo = localStorage.getItem('ink.touchMode') === 'draw' ? 'draw' : 'scroll';
+
+  const pad = new InkPad(layer, canvas, $('.ink-canvas-wrap', screen), {
+    touchMode: modoDedo,
     lineHeight: LINE_HEIGHT,
     lineCount: LINE_COUNT,
     gutter: GUTTER,
@@ -677,7 +681,15 @@ export function openInkScreen(groupID, onDone) {
     countLabel.textContent = total === 1 ? '1 tarefa' : `${total} tarefas`;
   }
 
-  setTimeout(() => { hint.hidden = true; }, 5200);
+  function pintarBotaoDedo() {
+    const botao = $('[data-touch]', screen);
+    const desenha = pad.touchMode === 'draw';
+    botao.setAttribute('aria-pressed', String(desenha));
+    botao.textContent = desenha ? 'Dedo: desenha' : 'Dedo: rola';
+  }
+  pintarBotaoDedo();
+
+  setTimeout(() => { hint.hidden = true; }, 6000);
 
   const onResize = () => pad.resize();
   window.addEventListener('resize', onResize);
@@ -688,6 +700,14 @@ export function openInkScreen(groupID, onDone) {
       pad.setMode(tool.dataset.tool);
       $$('[data-tool]', screen).forEach((b) =>
         b.setAttribute('aria-pressed', String(b === tool)));
+      return;
+    }
+    const touchBtn = event.target.closest('[data-touch]');
+    if (touchBtn) {
+      const desenha = pad.touchMode !== 'draw';
+      pad.setTouchMode(desenha ? 'draw' : 'scroll');
+      localStorage.setItem('ink.touchMode', desenha ? 'draw' : 'scroll');
+      pintarBotaoDedo();
       return;
     }
     if (event.target.closest('[data-undo]')) { pad.undo(); return; }
